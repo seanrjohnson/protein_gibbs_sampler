@@ -1,0 +1,17 @@
+Model Metadata:
+
+Model ID         = rostlab_prot_bert_bfd
+Dataset ID       = rostlab_dataset
+Model Run ID     = vanilla
+Model Checkpoint = pretrained
+
+Generation Metadata:
+
+Generation ID    = db515f
+Trial Desc       = no description provided
+Trial ID         = trial1
+Seed ID          = E_coli_CM2
+
+Sampler ID       = Sampler_2
+Sampler Config:
+{"n_samples": 100, "batch_size": 6, "in_order": false, "num_positions": 9, "mask": true, "max_len": 95, "num_iters": 20, "burnin": 10, "seed_seq": "MTSENPLLALREKISALDEKLLALLAERRELAVEVGKAKLLSHRPVRDIDRERDLLERLITLGKAHHLDAHYITRLFQLIIEDSVLTQQALLQQH"}

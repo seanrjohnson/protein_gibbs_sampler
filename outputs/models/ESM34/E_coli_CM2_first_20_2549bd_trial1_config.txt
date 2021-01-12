@@ -1,0 +1,17 @@
+Model Metadata:
+
+Model ID         = esm1_t34_670M_UR50S
+Dataset ID       = esm1_t34_670M_UR50S_dataset
+Model Run ID     = vanilla
+Model Checkpoint = pretrained
+
+Generation Metadata:
+
+Generation ID    = 2549bd
+Trial Desc       = no description provided
+Trial ID         = trial1
+Seed ID          = E_coli_CM2_first_20
+
+Sampler ID       = Sampler_1
+Sampler Config:
+{"n_samples": 100, "batch_size": 6, "in_order": true, "top_k": 0, "num_positions": 1, "mask": true, "max_len": 95, "leader_length": 20, "num_iters": 190, "rollover_from_start": true, "seed_seq": "MTSENPLLALREKISALDEK"}

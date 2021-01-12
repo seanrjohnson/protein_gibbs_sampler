@@ -1,0 +1,17 @@
+Model Metadata:
+
+Model ID         = esm1_t12_85M_UR50S
+Dataset ID       = Russ_994_random
+Model Run ID     = Dec04_13-47-23_6fb55ea4
+Model Checkpoint = best-model-checkpoint-Dec04_13-47-23_6fb55ea4.pt
+
+Generation Metadata:
+
+Generation ID    = 6b9c30
+Trial Desc       = Sequences random 10% at a time
+Trial ID         = trial2
+Seed ID          = E_coli_CM2
+
+Sampler ID       = Sampler_1
+Sampler Config:
+{"n_samples": 250, "batch_size": 32, "in_order": false, "num_iters": 20, "mask": true, "num_positions": 9, "max_len": 95, "seed_seq": "MTSENPLLALREKISALDEKLLALLAERRELAVEVGKAKLLSHRPVRDIDRERDLLERLITLGKAHHLDAHYITRLFQLIIEDSVLTQQALLQQH"}

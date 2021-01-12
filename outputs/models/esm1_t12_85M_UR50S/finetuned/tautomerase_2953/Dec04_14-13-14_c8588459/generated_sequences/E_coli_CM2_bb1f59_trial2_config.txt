@@ -1,0 +1,17 @@
+Model Metadata:
+
+Model ID         = esm1_t12_85M_UR50S
+Dataset ID       = tautomerase_2953
+Model Run ID     = Dec04_14-13-14_c8588459
+Model Checkpoint = best-model-checkpoint-Dec04_14-13-14_c8588459.pt
+
+Generation Metadata:
+
+Generation ID    = bb1f59
+Trial Desc       = Sequences random 10% at a time
+Trial ID         = trial2
+Seed ID          = E_coli_CM2
+
+Sampler ID       = Sampler_1
+Sampler Config:
+{"n_samples": 250, "batch_size": 32, "in_order": false, "num_iters": 20, "mask": true, "num_positions": 9, "max_len": 95, "seed_seq": "MTSENPLLALREKISALDEKLLALLAERRELAVEVGKAKLLSHRPVRDIDRERDLLERLITLGKAHHLDAHYITRLFQLIIEDSVLTQQALLQQH"}

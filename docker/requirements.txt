@@ -1,0 +1,17 @@
+git+https://github.com/facebookresearch/esm.git
+hmmer
+transformers
+tensorboard
+datasets
+pytorch-nlp
+sentencepiece
+jupyterlab
+pandas
+scikit-learn
+seaborn
+matplotlib
+pytorch-lightning-bolts
+pytorch-lightning
+test_tube
+tokenizers
+biopython
