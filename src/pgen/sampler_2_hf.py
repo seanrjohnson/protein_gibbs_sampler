@@ -101,9 +101,8 @@ class Sampler_2():
         return tokens
 
     def generate(self, n_samples, seed_seq, batch_size=1, in_order=False, max_len=30, leader_length=0, top_k=0, temperature=None, num_iters=10,  burnin=float('inf'),
-                            cuda=False, print_every_inner=10, print_every_outer=1, verbose=True, mask=True, num_positions=0, indexes=None):
+                 cuda=False, print_every_inner=10, print_every_outer=1, verbose=True, mask=True, num_positions=0,indexes=None, rollover_from_start=False):
         """ generate sequences
-
             n_samples: number of sequences to output
             seed_seq: protein sequence to start from
             batch_size: how many sequences to generate per loop.
@@ -118,10 +117,8 @@ class Sampler_2():
             print_every: print after every this number of loops/batches
             num_positions: generate new AAs for this many positions each iteration. If 0, then generate for all target positions each round.
             indexes: positions of the input sequence to modify. 1-indexed, if None then all positions after the leader.
-
             #### Examples #####
             seed = "MTSENPLLALREKISALDEKLLALLAERRELAVEVGKAKLLSHRPVRDIDRERDLLERLITLGKAHHLDAHYITRLFQLIIEDSVLTQQALLQQH"
-
             #To generate AAs one position at a time in order:
                 sampler.generate(n_samples=1, seed_seq=seed, batch_size=1, max_len=len(seed), in_order=True, num_positions=1, num_iters=len(seed), mask=True)
             #To generate the entire protein at once:
@@ -134,7 +131,6 @@ class Sampler_2():
             #### Sequence Completion ####
             seed = "MTSENPLLALREKISALDEKLLALLAERRELAVE"
             product_length = 95
-
             #generate L->R one at a time
                 out = sampler.generate(1, seed_seq=seed, batch_size=1, max_len=product_length, in_order=True, top_k=0, leader_length=len(seed), num_positions=1, num_iters=product_length-len(seed), mask=True)
             #generate all at a time
@@ -149,17 +145,27 @@ class Sampler_2():
         n_batches = math.ceil(n_samples / batch_size)
         start_time = time.time()
 
+        if leader_length < 0:
+            leader_length = 0
+
+        iteration = 0
         for batch_n in range(n_batches):
+            iteration += 1
             print(batch_n)
 
             batch = self.get_init_seq(seed_seq, max_len, batch_size)
             batch = batch.cuda() if cuda else batch
 
             if indexes is None:
-                indexes = range(1,max_len+1) #skip position 1, because that should be <cls>
-            indexes = [i for i in indexes if i > leader_length]
+                indexes = range(1, max_len + 1)  # skip position 1, because that should be <cls>
+                if rollover_from_start == False:  # we rollover from the end of the leader sequence
+                    indexes = [i for i in indexes if i > leader_length]
+                    last_i = leader_length - 1
+                else:
+                    last_i = -1
+            else:
+                last_i = -1
 
-            last_i = -1
             if num_positions > len(indexes):
                 num_positions = len(indexes)
 
@@ -182,10 +188,13 @@ class Sampler_2():
                     for kk in target_indexes:
                         batch[:,kk] = self.tokenizer.convert_tokens_to_ids('[MASK]')
 
-                print('batch')
-                print(batch.shape)
+
                 out = self.model(batch).logits
-                print(out.shape)
+                if iteration == 1:
+                    print('batch')
+                    print(batch.shape)
+                    print('out')
+                    print(out.shape)
                 for kk in target_indexes:
                     idxs = self.generate_step(out, gen_idx=kk, top_k=top_k, temperature=temperature, sample=(ii < burnin))
                     #print(idxs)
@@ -210,5 +219,7 @@ class Sampler_2():
             if (batch_n + 1) % print_every_outer == 0:
                 print("Finished batch %d in %.3fs" % (batch_n + 1, time.time() - start_time))
                 start_time = time.time()
-        return sequences
 
+        for si in range(len(sequences)):
+            sequences[si] = sequences[si].replace(' ', '')
+        return sequences
