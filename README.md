@@ -1,4 +1,4 @@
-# Generating Novel Protein Sequences
+# Generating novel protein sequences using Gibbs sampling of masked language models
 
 This repository represents the code supporting the work done in [Paper Name](Paper.pdf)
 
