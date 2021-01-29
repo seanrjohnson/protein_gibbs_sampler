@@ -1,6 +1,7 @@
 # Generating novel protein sequences using Gibbs sampling of masked language models
 
-This repository represents the code supporting the work done in [Paper Name](Paper.pdf)
+This repository represents the code supporting the work done in our manuscript: [Generating novel protein sequences using Gibbs sampling of masked language models
+](https://www.biorxiv.org/content/10.1101/2021.01.26.428322v1.full)
 
 ## Running the Code
 
