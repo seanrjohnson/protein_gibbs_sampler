@@ -141,5 +141,5 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
-
+generated_output/
 Connecting_on_windows.txt

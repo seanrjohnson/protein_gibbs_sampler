@@ -5,8 +5,8 @@ ENV TORCH_HOME=${workspace}/cache/torch
 ENV PYTORCH_TRANSFORMERS_CACHE=${workspace}/cache/torch_transformers
 WORKDIR ${workspace}
 
-RUN apt update && apt upgrade -y && \
-    apt install curl vim git -y
+RUN apt-get update && apt-get upgrade -y && \
+    apt-get install curl vim git -y
 
 ADD requirements.txt /tmp
 RUN pip install -r /tmp/requirements.txt

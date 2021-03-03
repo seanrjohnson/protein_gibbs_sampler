@@ -2,6 +2,7 @@ import torch
 import math
 import time
 import random
+from tqdm import trange
 
 class Sampler_1():
     """adapted from bert-gen bert-babble.ipynb"""
@@ -76,7 +77,7 @@ class Sampler_1():
         return tokens
 
     def generate(self, n_samples, seed_seq, batch_size=1, in_order=False, max_len=30, leader_length=0, top_k=0, temperature=None, num_iters=10,  burnin=float('inf'),
-                            cuda=False, print_every_inner=10, print_every_outer=1, verbose=True, mask=True, num_positions=0, indexes=None, rollover_from_start=False):
+                            print_every_inner=10, print_every_outer=1, verbose=True, mask=True, num_positions=0, indexes=None, rollover_from_start=False):
         """ generate sequences
 
             n_samples: number of sequences to output
@@ -127,8 +128,7 @@ class Sampler_1():
         if leader_length < 0:
             leader_length = 0
         
-        for batch_n in range(n_batches):
-            print(batch_n)
+        for batch_n in trange(n_batches):
 
             batch = self.get_init_seq(seed_seq, max_len, batch_size)
             batch = batch.cuda() if cuda else batch
@@ -178,17 +178,9 @@ class Sampler_1():
                         for jj in range(batch_size):
                             batch[jj][kk] = idxs[jj]
                 
-                if verbose and ((ii % print_every_inner) == 0):
-                    #print("iter", ii+1, " ".join(tokenizer.convert_ids_to_tokens(batch[0])))
-                    print("iter", ii+1)
-            
             if batch_n == (n_batches - 1): #last batch, so maybe don't take all of them, just take enough to get to n_samples
                 sequences += self.untokenize_batch(batch)[0:n_samples - len(sequences)]
             else:
                 sequences += self.untokenize_batch(batch)
-
-            if (batch_n + 1) % print_every_outer == 0:
-                print("Finished batch %d in %.3fs" % (batch_n + 1, time.time() - start_time))
-                start_time = time.time()
         return sequences
 
