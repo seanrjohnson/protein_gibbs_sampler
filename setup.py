@@ -14,7 +14,7 @@ setup(
     license="MIT",
     packages=find_packages('src'),
     package_dir={'': 'src'},
-    scripts=["src/pgen/esm1b_exec.py"],
+    scripts=["src/pgen/pgen.py"],
     # py_modules=[splitext(basename(path))[0] for path in glob('src/pgen/*.py')],
     install_requires=requirements,
     include_package_data=True,

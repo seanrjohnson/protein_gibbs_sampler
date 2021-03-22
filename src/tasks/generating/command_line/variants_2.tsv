@@ -1,2 +1,0 @@
-AMIE_PSEAE	{'seed_seq': 'MRHGDISSSNDTVGVAVVNYKMPRLHTAAEVLDNARKIAEMIVGMKQGLPGMDLVVF', 'num_iters': 20, 'burnin': 10, 'mask': True, 'num_positions': 7}
-B3VI55_LIPST	{'seed_seq': 'MPIATSTGDNVLDFTVLGLNSGTSMDGIDCALCHFYQKTPDAPMEFELLEYGEVPLAQPIKQ', 'num_iters': 20, 'burnin': 10, 'mask': True, 'num_positions': 7}
