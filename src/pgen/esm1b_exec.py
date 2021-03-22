@@ -12,7 +12,8 @@ def main(input_h, output_p, args):
     for line in input_h:
         line = line.strip().split("\t")
         if len(line) == 2:
-            print("\t".join(line), output_h)
+            print("\t".join(line))
+            print("\t".join(line), file=output_h)
             name = line[0]
             line_args = eval(line[1])
             sequences = sampler.generate(args.total_sequences, batch_size=args.batch_size, **line_args)
