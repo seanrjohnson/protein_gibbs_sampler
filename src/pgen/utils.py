@@ -9,6 +9,8 @@ from pathlib import Path
 import uuid
 import subprocess
 import numpy as np
+import string
+import random
 
 
 logger = logging.getLogger(__name__)
@@ -157,12 +159,19 @@ def flatten_second_order(sos):
     out = np.zeros(sos.shape[2]*sos.shape[2])
     return out
 
-def parse_fasta(filename, return_names=False): 
+def parse_fasta(filename, return_names=False, clean=None): 
     """
         adapted from: https://bitbucket.org/seanrjohnson/srj_chembiolib/src/master/parsers.py
         
-        input: the name of a fasta file or a filehandle to a fasta file
-        output: a list of sequences from the fasta file
+
+        input:
+            filename: the name of a fasta file or a filehandle to a fasta file.
+            return_names: if True then return two lists: (names, sequences), otherwise just return list of 
+            clean: {None, 'upper', 'delete'}
+                    if 'delete' then delete all lowercase "." and "*" characters. This is usually if the input is an a2m file and you don't want to preserve the original length.
+                    if 'upper' then delete "*" characters, convert lowercase to upper case, and "." to "-"
+
+        output: sequences or names, sequences
     """
     
     prev_len = 0
@@ -174,7 +183,8 @@ def parse_fasta(filename, return_names=False):
 
     for line in input_handle:
         line = line.strip()
-        
+        if len(line) == 0:
+            continue
         if line[0] == ">":
             parts = line.split(None, 1)
             name = parts[0][1:]
@@ -192,6 +202,29 @@ def parse_fasta(filename, return_names=False):
 
     if input_type == "name":
         input_handle.close()
+    
+    if clean == 'delete':
+        # uses code from: https://github.com/facebookresearch/esm/blob/master/examples/contact_prediction.ipynb
+        deletekeys = dict.fromkeys(string.ascii_lowercase)
+        deletekeys["."] = None
+        deletekeys["*"] = None
+        translation = str.maketrans(deletekeys)
+        remove_insertions = lambda x: x.translate(translation)
+
+        for i in range(len(out_seqs)):
+            out_seqs[i] = remove_insertions(out_seqs[i])
+    
+    elif clean == 'upper':
+        deletekeys = dict.fromkeys(string.ascii_lowercase)
+        deletekeys["."] = '-'
+        deletekeys["*"] = None
+        translation = str.maketrans(deletekeys)
+        remove_insertions = lambda x: x.translate(translation)
+
+        for i in range(len(out_seqs)):
+            out_seqs[i] = remove_insertions(out_seqs[i].upper())
+
+
     if return_names:
         return out_names, out_seqs
     else:
@@ -402,3 +435,39 @@ def generate_alignment(sequences, tmp_dir="/tmp"):
         print(align_out.stderr)
         raise(Exception)
     return parse_fasta_string(align_out.stdout.decode('utf-8'),True)
+
+
+class SequenceSubsetter:
+    subset_strategies = {"random","in_order"}
+
+    @classmethod
+    def subset(cls, seq_list: list, n: int, keep_first_sequence: bool = False, strategy: str = "random", random_seed: int =None) -> list:
+        """
+            input:
+                seq_list: a list of protein sequence strings
+                n: how many members of seq_list to copy into the output. If n > len(seq_list), a copy of seq_list will be returned
+                keep_first_sequence: if set, then copy seq_list[0] into output and sample n-1 additional items
+                strategy: 
+                    "random": take sequences randomly from seq_list (without replacement)
+                    "in_order": take the top n sequences from seq_list
+        """
+
+        output = list()
+        if n <= 0:
+            return output
+
+        tmp_list = seq_list.copy()
+        if keep_first_sequence:
+            output.append(seq_list[0])
+            n = n - 1
+            tmp_list = tmp_list[1:]
+
+        if strategy not in cls.subset_strategies:
+            raise ValueError(f"sampler strategy {strategy} not recognized, must be one of {cls.subset_strategies}")
+        elif strategy == "random":
+            random.Random(random_seed).shuffle(tmp_list)
+            output += tmp_list[0:n]
+        elif strategy == "in_order":
+            output += tmp_list[0:n]
+
+        return output
