@@ -23,3 +23,8 @@ git clone --branch esm1b_followup https://github.com/seanrjohnson/protein_gibbs_
 cd protein_gibbs_sampler
 make run
 
+# then you can ssh in to the node 
+# make shell
+# pip install -e .
+# then start the server.
+# jupyter lab --no-browser --ip=0.0.0.0 --allow-root

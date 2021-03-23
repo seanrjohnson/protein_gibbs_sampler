@@ -27,7 +27,7 @@ def main(input_h, output_p, args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-o", default=".", help="a directory to save the outputs in")
-    parser.add_argument("-i", default=None, help="tab separated file where the columns are as follows: [sample name] \\t [dict of arguments for the sampler] \\t [seed sequence].")
+    parser.add_argument("-i", default=None, help="tab separated file where the columns are as follows: [sample name] \\t [dict of arguments for the sampler] \\t [path to seed msa in fasta format].")
     parser.add_argument("--batch_size", type=int, default=1, required=True, help="batch size for sampling (sequences per iteration).")
     parser.add_argument("--total_sequences", type=int, default=1, required=True, help="total number of sequences to generate.")
     parser.add_argument("--device", type=str, default="cpu", choices={"cpu","gpu"}, required=True, help="cpu or gpu")
