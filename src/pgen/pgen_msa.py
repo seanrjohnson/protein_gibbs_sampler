@@ -6,8 +6,6 @@ from pathlib import Path
 import shutil
 import sys
 
-#TODO: vocabulary here can be confusing, because "sampling" is used to refer to the Gibbs sampling process and to the 
-
 model_map = {"esm_msa1":models.ESM_MSA1}
 
 
