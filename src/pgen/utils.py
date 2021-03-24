@@ -441,12 +441,12 @@ class SequenceSubsetter:
     subset_strategies = {"random","in_order"}
 
     @classmethod
-    def subset(cls, seq_list: list, n: int, keep_first_sequence: bool = False, strategy: str = "random", random_seed: int =None) -> list:
+    def subset(cls, seq_list: list, n: int, keep_first: bool = False, strategy: str = "random", random_seed: int =None) -> list:
         """
             input:
                 seq_list: a list of protein sequence strings
                 n: how many members of seq_list to copy into the output. If n > len(seq_list), a copy of seq_list will be returned
-                keep_first_sequence: if set, then copy seq_list[0] into output and sample n-1 additional items
+                keep_first: if set, then copy seq_list[0] into output and sample n-1 additional items
                 strategy: 
                     "random": take sequences randomly from seq_list (without replacement)
                     "in_order": take the top n sequences from seq_list
@@ -457,7 +457,7 @@ class SequenceSubsetter:
             return output
 
         tmp_list = seq_list.copy()
-        if keep_first_sequence:
+        if keep_first:
             output.append(seq_list[0])
             n = n - 1
             tmp_list = tmp_list[1:]

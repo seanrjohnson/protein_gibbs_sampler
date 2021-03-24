@@ -19,7 +19,7 @@ def main(input_h, output_p, args):
     device = args.device
     gibbs_sampler = ESM_MSA_sampler(model_map[args.model](),device=args.device)
     
-    output_h = open(output_p / "specification.tsv","w")
+    with open(output_p / "specification.tsv","w") as output_h
     for line in input_h:
         line = line.strip().split("\t")
         if len(line) == 3:
@@ -34,8 +34,6 @@ def main(input_h, output_p, args):
 
             sequences = gibbs_sampler.generate(args.num_output_sequences, seed_msa=input_msa, batch_size=args.batch_size, **line_args)
             write_sequential_fasta( output_p / (name + ".fasta"), sequences )
-    output_h.close()
-
 
 
 if __name__ == "__main__":

@@ -24,21 +24,21 @@ EMKWFADRGHSVVGVEISELGIQEFFTEQNLSYSeep*
 ###### Tests #######
 
 @pytest.mark.parametrize("test_input,expected", [
-                                                ({'seq_list': [0,1,2,3,4,5], 'n':1, 'keep_first_sequence': True, 'strategy': "in_order"}, [0]),
-                                                ({'seq_list': [0,1,2,3,4,5], 'n':1, 'keep_first_sequence': False, 'strategy': "in_order"}, [0]),
-                                                ({'seq_list': [0,1,2,3,4,5], 'n':1, 'keep_first_sequence': True, 'strategy': "random"}, [0]),
-                                                ({'seq_list': [0,1,2,3,4,5], 'n':3, 'keep_first_sequence': True, 'strategy': "in_order"}, [0,1,2]),
-                                                ({'seq_list': [0,1,2,3,4,5], 'n':3, 'keep_first_sequence': False, 'strategy': "in_order"}, [0,1,2]),
-                                                ({'seq_list': [0,1,2,3,4,5], 'n':0, 'keep_first_sequence': False, 'strategy': "in_order"}, []),
-                                                ({'seq_list': [0,1,2,3,4,5], 'n':0, 'keep_first_sequence': True, 'strategy': "in_order"}, []),
-                                                ({'seq_list': [0,1,2,3,4,5], 'n':5000, 'keep_first_sequence': True, 'strategy': "in_order"}, [0,1,2,3,4,5]),
-                                                ({'seq_list': [0,1,2,3,4,5], 'n':5000, 'keep_first_sequence': False, 'strategy': "in_order"}, [0,1,2,3,4,5]),
+                                                ({'seq_list': [0,1,2,3,4,5], 'n':1, 'keep_first': True, 'strategy': "in_order"}, [0]),
+                                                ({'seq_list': [0,1,2,3,4,5], 'n':1, 'keep_first': False, 'strategy': "in_order"}, [0]),
+                                                ({'seq_list': [0,1,2,3,4,5], 'n':1, 'keep_first': True, 'strategy': "random"}, [0]),
+                                                ({'seq_list': [0,1,2,3,4,5], 'n':3, 'keep_first': True, 'strategy': "in_order"}, [0,1,2]),
+                                                ({'seq_list': [0,1,2,3,4,5], 'n':3, 'keep_first': False, 'strategy': "in_order"}, [0,1,2]),
+                                                ({'seq_list': [0,1,2,3,4,5], 'n':0, 'keep_first': False, 'strategy': "in_order"}, []),
+                                                ({'seq_list': [0,1,2,3,4,5], 'n':0, 'keep_first': True, 'strategy': "in_order"}, []),
+                                                ({'seq_list': [0,1,2,3,4,5], 'n':5000, 'keep_first': True, 'strategy': "in_order"}, [0,1,2,3,4,5]),
+                                                ({'seq_list': [0,1,2,3,4,5], 'n':5000, 'keep_first': False, 'strategy': "in_order"}, [0,1,2,3,4,5]),
                                                 ])
 def test_subsetter_1(test_input, expected):
     assert utils.SequenceSubsetter.subset(**test_input) == expected
 
 def test_subsetter_2():
-    test_input = {'seq_list': [0,1,2,3,4,5], 'n':5000, 'keep_first_sequence': True, 'strategy': "random", "random_seed": 1}
+    test_input = {'seq_list': [0,1,2,3,4,5], 'n':5000, 'keep_first': True, 'strategy': "random", "random_seed": 1}
     output = utils.SequenceSubsetter.subset(**test_input)
     assert output[0] == 0
     assert set(test_input['seq_list']) == set(output)

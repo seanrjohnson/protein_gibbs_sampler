@@ -25,4 +25,4 @@ class ESM_MSA1():
     def __init__(self):
         self.model, self.alphabet = esm.pretrained.esm_msa1_t12_100M_UR50S()
         # self.msa_transformer = model.eval().cuda()
-        self.msa_batch_converter = self.alphabet.get_batch_converter()
+        self.batch_converter = self.alphabet.get_batch_converter()
