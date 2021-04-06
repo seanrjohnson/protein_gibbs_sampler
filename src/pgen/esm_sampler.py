@@ -187,11 +187,7 @@ class ESM_sampler():
                     out = self.model.model(batch)["logits"]
                     for kk in target_indexes:
                         idxs = self.generate_step(out, gen_idx=kk, top_k=top_k, temperature=temperature, sample=(ii < burnin))
-                        #print(idxs)
-                        #if type(batch_size == 1: #TODO: probably better to handle this upstream in the squeeze step of generate_step
                         if type(idxs) == int:
-                            # print(idxs)
-                            # print()
                             batch[0][kk] = idxs
                         else:
                             for jj in range(batch_size):

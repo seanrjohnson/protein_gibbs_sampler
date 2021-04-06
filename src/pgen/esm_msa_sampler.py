@@ -15,7 +15,7 @@ class ESM_MSA_sampler():
 
         #switch model to eval mode
         #TODO: CHECK THAT THIS ACTUALLY SWITCHES THE MODEL TO EVAL MODE AND TURNS OFF GRADIENTS!
-        self.model.model.eval()
+        self.model.model = self.model.model.eval()
         self.cuda = False
         #set device
         #TODO: handle case where there are multiple cuda devices.
@@ -62,29 +62,33 @@ class ESM_MSA_sampler():
             idx = torch.argmax(logits, dim=-1) #TOOD: for batch size 1, this somehow returns data in a different format than the other ones.
         return idx.tolist() if return_list else idx
 
-    def get_init_seq(self, seed_msa, max_len, batch_size = 1):
-        """ Get initial sequence by expanding into a batch."""
+    def get_init_seq(self, seed_seq, max_len, batch_size = 1):
+        """ Get initial sequence by padding seed_seq with masks """
+        #In the paper they talk about padding with random sequence. I'm not sure that's a good idea. S.R.J.
+        # Also, that code was commented out in the BertGen repo. So they probably didn't think was a good idea either.
         
-        # batch = [(str(i), seed_seq + ["<mask>"] * remaining_len) for i in range(batch_size)]
-        batch = list()
-        for i in range(len(seed_msa)):
-            remaining_len = max_len - len(seed_seq)
-            seed_seq = [x for x in seed_seq] #if input is a string, convert it to an array
-            batch = [(str(i), seed_seq + ["<mask>"] * remaining_len) for i in range(batch_size)]
-            [ (str(i), seed_msa[i] + ["<mask>"] * remaining_len ) ]
+        remaining_len = max_len - len(seed_seq)
+        seed_seq = [x for x in seed_seq] #if input is a string, convert it to an array
+        batch = [(str(i), seed_seq + ["<mask>"] * remaining_len) for i in range(batch_size)]
         
-        labels, strs, tokens = self.model.batch_converter(batch * batch_size)
+        #if rand_init:
+        #    for ii in range(max_len):
+        #        init_idx[seed_len+ii] = np.random.randint(0, len(tokenizer.vocab))
+        labels, strs, tokens = self.model.batch_converter(batch)
         return tokens
 
-    def generate(self, n_samples, seed_msa, batch_size=1, in_order=False, max_len=None, leader_length=0, leader_length_percent=None, top_k=0, temperature=None, num_iters=10,  burnin=float('inf'),
+    #def mask
+
+
+    def generate(self, n_samples, seed_seq, batch_size=1, in_order=False, max_len=None, leader_length=0, leader_length_percent=None, top_k=0, temperature=None, num_iters=10, burnin=float('inf'),
                             mask=True, num_positions=0, num_positions_percent=None, indexes=None, rollover_from_start=False):
         """ generate sequences
 
             n_samples: number of sequences to output
-            seed_msa: protein msa to start from
-            batch_size: how many copies of the seed msa to run at one time.
+            seed_seq: protein sequence to start from
+            batch_size: how many copies of the seed sequence to run at one time.
             in_order: if True then cycle through the positions in order, otherwise randomly select positions each iteration
-            max_len: maximum size of each generated sequence. If None, then use the length of the longest input msa.
+            max_len: maximum size of each generated sequence. If None, then use the length of the input sequence.
             leader_length: don't overwrite this many amino acids at the beginning of the sequence.
             leader_length_percent: if not None, then will set leader_length = int(len(seed_seq)*(leader_length_percent / 100))
             top_k: if >0, only sample from the top k most probable AAs
@@ -94,7 +98,7 @@ class ESM_MSA_sampler():
 
             num_positions: generate new AAs for this many positions each iteration. If 0, then generate for all target positions each round.
             num_positions_percent: If not None, then set num_positions = int(len(seed_seq)*(num_positions_percent / 100))
-            indexes: positions of the input sequence to modify. 1-indexed, if None then all positions after the leader.
+            indexes: positions of the input sequence to modify. 1-indexed, if None then all positions after the leader (num_positions each sampler cycle).
 
             #### Examples #####
             seed = "MTSENPLLALREKISALDEKLLALLAERRELAVEVGKAKLLSHRPVRDIDRERDLLERLITLGKAHHLDAHYITRLFQLIIEDSVLTQQALLQQH"
@@ -102,11 +106,11 @@ class ESM_MSA_sampler():
             #To generate AAs one position at a time in order:
                 sampler.generate(n_samples=1, seed_seq=seed, batch_size=1, in_order=True, num_positions=1, num_iters=len(seed), mask=True)
             #To generate the entire protein at once:
-                sampler.generate(n_samples=1, seed_seq=seed, batch_size=1, max_len=len(seed), in_order=True, num_positions=len(seed), num_iters=1, mask=False)
+                sampler.generate(n_samples=1, seed_seq=seed, batch_size=1, max_len=None, in_order=True, num_positions=0, num_iters=1, mask=False)
             #To go 15 iterations over the protein where a 10% of AAs randomly distributed through the protein are mutated on each iteration:
-                sampler.generate(n_samples=1, seed_seq=seed, batch_size=1, max_len=len(seed), in_order=False, num_positions=int(len(seed)/10), num_iters=15, mask=False)
+                sampler.generate(n_samples=1, seed_seq=seed, batch_size=1, max_len=None, in_order=False, num_positions_percent=10, num_iters=15, mask=False)
             #To go 15 iterations over the protein where a 10% of AAs randomly distributed through the protein are mutated on each iteration, and k=0 for the first 5 iterations, but k=1 for the remaining:
-                sampler.generate(n_samples=1, seed_seq=seed, batch_size=1, max_len=len(seed), in_order=False, num_positions=int(len(seed)/10), num_iters=15, burnin=5, mask=False)
+                sampler.generate(n_samples=1, seed_seq=seed, batch_size=1, max_len=None, in_order=False, num_positions_percent=10, num_iters=15, burnin=5, mask=False)
             
             #### Sequence Completion ####
             seed = "MTSENPLLALREKISALDEKLLALLAERRELAVE"
@@ -119,9 +123,12 @@ class ESM_MSA_sampler():
         """
 
         #TODO: repetition penalty, somehow?
+        
+        #TODO: THIS IS IMPORTANT!! when doing random masking, mask each sequence in the batch independently, rather than masking the same random positions in each sequence in a batch.
+        
         #TODO: add dilated sequential sampling, like sampling every third or fifth amino acid and then doing the whole protein in like 3 or 5 steps, or something like that.
-        with torch.no_grad(): # I'm not sure if this no_grad is necessary or not, but it couldn't hurt!
 
+        with torch.no_grad(): # I'm not sure if this no_grad is necessary or not, but it couldn't hurt!
             cuda = self.cuda
             sequences = []
             n_batches = math.ceil(n_samples / batch_size)
@@ -142,10 +149,10 @@ class ESM_MSA_sampler():
 
             for batch_n in trange(n_batches):
 
-                batch = msa_alphabet.get_batch_converter() # self.get_init_seq(seed_seq, max_len, batch_size)
+                batch = self.get_init_seq(seed_seq, max_len, batch_size)
                 batch = batch.cuda() if cuda else batch
 
-                if indexes is None:
+                if indexes is None: #
                     indexes = range(1,max_len+1) #skip position 1, because that should be <cls>
                     if rollover_from_start == False: #we rollover from the end of the leader sequence
                         indexes = [i for i in indexes if i > leader_length]
@@ -180,11 +187,7 @@ class ESM_MSA_sampler():
                     out = self.model.model(batch)["logits"]
                     for kk in target_indexes:
                         idxs = self.generate_step(out, gen_idx=kk, top_k=top_k, temperature=temperature, sample=(ii < burnin))
-                        #print(idxs)
-                        #if type(batch_size == 1: #TODO: probably better to handle this upstream in the squeeze step of generate_step
                         if type(idxs) == int:
-                            # print(idxs)
-                            # print()
                             batch[0][kk] = idxs
                         else:
                             for jj in range(batch_size):
