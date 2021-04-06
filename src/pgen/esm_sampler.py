@@ -124,8 +124,6 @@ class ESM_sampler():
 
         #TODO: repetition penalty, somehow?
         
-        #TODO: THIS IS IMPORTANT!! when doing random masking, mask each sequence in the batch independently, rather than masking the same random positions in each sequence in a batch.
-        
         #TODO: add dilated sequential sampling, like sampling every third or fifth amino acid and then doing the whole protein in like 3 or 5 steps, or something like that.
 
         with torch.no_grad(): # I'm not sure if this no_grad is necessary or not, but it couldn't hurt!
