@@ -4,8 +4,37 @@ import time
 import random
 from tqdm import trange
 
+def generate_step(out, gen_idx, temperature=None, top_k=0, sample=False):
+    """ Generate a word from from out[gen_idx]
+    
+    args:
+        - out (torch.Tensor): tensor of logits of size seq_len x vocab_size
+        - gen_idx (int): location for which to generate for
+        - top_k (int): if >0, only sample from the top k most probable words
+        - sample (Bool): if True, sample from full distribution. Overridden by top_k 
+    """
+    #TODO: repetition penalty.
+    #TODO: this could be vectorized a lot better, but I think this isn't the rate limiting step (inferrence is), so it probably doesn't matter.
+
+    logits = out[gen_idx] # 1 x vocab_size
+    if temperature is not None:
+        logits = logits / temperature
+
+
+    if sample or (top_k <= 0) or (top_k > len(logits)): # If sample is true, that means we are forcing sampling from the whole distribution. if top_k is 0 that means we want to sample from the whole distribution.
+        top_k = len(logits)
+    else: # top_k is in bounds and we aren't forcing full sampling, so just keep it as it is.
+        top_k = top_k
+
+    kth_vals, kth_idx = logits.topk(top_k)  # kth_vals is the logits, kth_idx is the indexes at which the logits are found.
+    dist = torch.distributions.categorical.Categorical(logits=kth_vals)
+    idx = kth_idx[dist.sample()]
+
+    return idx
+
 class ESM_sampler():
     """adapted from bert-gen bert-babble.ipynb"""
+
 
     def __init__(self, model, device="cpu"):
         """
@@ -36,31 +65,6 @@ class ESM_sampler():
    
         return out
         
-    def generate_step(self, out, gen_idx, temperature=None, top_k=0, sample=False, return_list=True):
-        """ Generate a word from from out[gen_idx]
-        
-        args:
-            - out (torch.Tensor): tensor of logits of size batch_size x seq_len x vocab_size
-            - gen_idx (int): location for which to generate for
-            - top_k (int): if >0, only sample from the top k most probable words
-            - sample (Bool): if True, sample from full distribution. Overridden by top_k 
-            - return_list (Bool): if True, 
-        """
-        #TODO: repetition penalty.
-
-        logits = out[:, gen_idx]
-        if temperature is not None:
-            logits = logits / temperature
-        if top_k > 0:
-            kth_vals, kth_idx = logits.topk(top_k, dim=-1)
-            dist = torch.distributions.categorical.Categorical(logits=kth_vals)
-            idx = kth_idx.gather(dim=1, index=dist.sample().unsqueeze(-1)).squeeze(-1)
-        elif sample: #take from full distribution
-            dist = torch.distributions.categorical.Categorical(logits=logits)
-            idx = dist.sample().squeeze(-1)
-        else: #take top hit, equivalent to top_k = 1
-            idx = torch.argmax(logits, dim=-1) #TOOD: for batch size 1, this somehow returns data in a different format than the other ones.
-        return idx.tolist() if return_list else idx
 
     def get_init_seq(self, seed_seq, max_len, batch_size = 1):
         """ Get initial sequence by padding seed_seq with masks """
@@ -77,18 +81,15 @@ class ESM_sampler():
         labels, strs, tokens = self.model.batch_converter(batch)
         return tokens
 
-    #def mask
-
-
-    def generate(self, n_samples, seed_seq, batch_size=1, in_order=False, max_len=None, leader_length=0, leader_length_percent=None, top_k=0, temperature=None, num_iters=10, burnin=float('inf'),
+    def generate(self, n_samples, seed_seq, batch_size=1, in_order=False, max_len=None, leader_length=0, leader_length_percent=None, top_k=0, temperature=None, num_iters=10,  burnin=float('inf'),
                             mask=True, num_positions=0, num_positions_percent=None, indexes=None, rollover_from_start=False):
         """ generate sequences
 
             n_samples: number of sequences to output
-            seed_seq: protein sequence to start from
-            batch_size: how many copies of the seed sequence to run at one time.
+            seed_seq: protein msa to start from
+            batch_size: how many copies of the seed msa to run at one time.
             in_order: if True then cycle through the positions in order, otherwise randomly select positions each iteration
-            max_len: maximum size of each generated sequence. If None, then use the length of the input sequence.
+            max_len: maximum size of each generated sequence. If None, then use the length of the longest input msa.
             leader_length: don't overwrite this many amino acids at the beginning of the sequence.
             leader_length_percent: if not None, then will set leader_length = int(len(seed_seq)*(leader_length_percent / 100))
             top_k: if >0, only sample from the top k most probable AAs
@@ -98,7 +99,7 @@ class ESM_sampler():
 
             num_positions: generate new AAs for this many positions each iteration. If 0, then generate for all target positions each round.
             num_positions_percent: If not None, then set num_positions = int(len(seed_seq)*(num_positions_percent / 100))
-            indexes: positions of the input sequence to modify. 1-indexed, if None then all positions after the leader (num_positions each sampler cycle).
+            indexes: positions of the input sequence to modify. 1-indexed, if None then all positions after the leader.
 
             #### Examples #####
             seed = "MTSENPLLALREKISALDEKLLALLAERRELAVEVGKAKLLSHRPVRDIDRERDLLERLITLGKAHHLDAHYITRLFQLIIEDSVLTQQALLQQH"
@@ -106,11 +107,11 @@ class ESM_sampler():
             #To generate AAs one position at a time in order:
                 sampler.generate(n_samples=1, seed_seq=seed, batch_size=1, in_order=True, num_positions=1, num_iters=len(seed), mask=True)
             #To generate the entire protein at once:
-                sampler.generate(n_samples=1, seed_seq=seed, batch_size=1, max_len=None, in_order=True, num_positions=0, num_iters=1, mask=False)
+                sampler.generate(n_samples=1, seed_seq=seed, batch_size=1, max_len=len(seed), in_order=True, num_positions=len(seed), num_iters=1, mask=False)
             #To go 15 iterations over the protein where a 10% of AAs randomly distributed through the protein are mutated on each iteration:
-                sampler.generate(n_samples=1, seed_seq=seed, batch_size=1, max_len=None, in_order=False, num_positions_percent=10, num_iters=15, mask=False)
+                sampler.generate(n_samples=1, seed_seq=seed, batch_size=1, max_len=len(seed), in_order=False, num_positions=int(len(seed)/10), num_iters=15, mask=False)
             #To go 15 iterations over the protein where a 10% of AAs randomly distributed through the protein are mutated on each iteration, and k=0 for the first 5 iterations, but k=1 for the remaining:
-                sampler.generate(n_samples=1, seed_seq=seed, batch_size=1, max_len=None, in_order=False, num_positions_percent=10, num_iters=15, burnin=5, mask=False)
+                sampler.generate(n_samples=1, seed_seq=seed, batch_size=1, max_len=len(seed), in_order=False, num_positions=int(len(seed)/10), num_iters=15, burnin=5, mask=False)
             
             #### Sequence Completion ####
             seed = "MTSENPLLALREKISALDEKLLALLAERRELAVE"
@@ -123,10 +124,9 @@ class ESM_sampler():
         """
 
         #TODO: repetition penalty, somehow?
-        
         #TODO: add dilated sequential sampling, like sampling every third or fifth amino acid and then doing the whole protein in like 3 or 5 steps, or something like that.
-
         with torch.no_grad(): # I'm not sure if this no_grad is necessary or not, but it couldn't hurt!
+
             cuda = self.cuda
             sequences = []
             n_batches = math.ceil(n_samples / batch_size)
@@ -150,7 +150,7 @@ class ESM_sampler():
                 batch = self.get_init_seq(seed_seq, max_len, batch_size)
                 batch = batch.cuda() if cuda else batch
 
-                if indexes is None: #
+                if indexes is None:
                     indexes = range(1,max_len+1) #skip position 1, because that should be <cls>
                     if rollover_from_start == False: #we rollover from the end of the leader sequence
                         indexes = [i for i in indexes if i > leader_length]
@@ -174,23 +174,25 @@ class ESM_sampler():
                                 next_i = (next_i+1) % len(indexes)
                                 target_indexes.append(indexes[next_i])
                             last_i = next_i
+                            target_indexes = [target_indexes] * batch_size
                         else:
-                            target_indexes = random.sample(indexes, num_positions)
+                            target_indexes = list()
+                            for b in range(batch_size):
+                                target_indexes.append(random.sample(indexes, num_positions))
                     else:
-                        target_indexes = indexes
+                        target_indexes = [indexes] * batch_size
+                    
                     if mask:
-                        for kk in target_indexes:
-                            batch[:,kk] = self.model.alphabet.mask_idx
+                        for batch_index in range(len(target_indexes)):
+                            for kk in target_indexes[batch_index]:
+                                batch[b,kk] = self.model.alphabet.mask_idx
 
                     out = self.model.model(batch)["logits"]
-                    for kk in target_indexes:
-                        idxs = self.generate_step(out, gen_idx=kk, top_k=top_k, temperature=temperature, sample=(ii < burnin))
-                        if type(idxs) == int:
-                            batch[0][kk] = idxs
-                        else:
-                            for jj in range(batch_size):
-                                batch[jj][kk] = idxs[jj]
                     
+                    for batch_index in range(batch_size):
+                        for kk in target_indexes[batch_index]:
+                            idx = generate_step(out[batch_index], gen_idx=kk, top_k=top_k, temperature=temperature, sample=(ii < burnin))
+                            batch[batch_index][kk] = idx
                 if batch_n == (n_batches - 1): #last batch, so maybe don't take all of them, just take enough to get to n_samples
                     sequences += self.untokenize_batch(batch)[0:n_samples - len(sequences)]
                 else:
