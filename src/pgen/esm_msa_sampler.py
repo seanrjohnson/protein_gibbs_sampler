@@ -3,14 +3,19 @@ import math
 import time
 import random
 from tqdm import trange
+from pgen.esm_sampler import generate_step
+
 
 class ESM_MSA_sampler():
     """adapted from bert-gen bert-babble.ipynb"""
-
+    
     def __init__(self, model, device="cpu"):
         """
             model should be an object with parameters model, alphabet, and batch_converter
         """
+        
+        #CONVERTED TO MSA  (but not tested)
+
         self.model = model
 
         #switch model to eval mode
@@ -32,50 +37,30 @@ class ESM_MSA_sampler():
 
     def untokenize_batch(self, batch): #TODO: maybe should be moved to the model class, or a model superclass?
         #convert tokens to AAs, but skip the first one, because that one is <cls>
-        out = [ "".join([self.model.alphabet.get_tok(seq[i]) for i in range(1,len(seq)) ]) for seq in batch]
-   
+        
+        #CONVERTED TO MSA  (but not tested)
+
+        out_batch = list()
+        for batch_index in range(len(batch)):
+            msa = batch[batch_index]
+            out_msa = [ "".join([self.model.alphabet.get_tok(seq[i]) for i in range(1,len(seq)) ]) for seq in msa]
+            out_batch.append(out_msa)
+
         return out
+
+
+    def get_init_msa(self, seed_msa, max_len, batch_size = 1):
+        """ Get initial msa by padding seed_seq with masks, and then tokenizing."""
         
-    def generate_step(self, out, gen_idx, temperature=None, top_k=0, sample=False):
-        """ Generate a word from from out[gen_idx]
+        #CONVERTED TO MSA (but not tested)
+
+        padded_msa = list()
+        for i, seq in enumerate(seed_msa):
+            remaining_len = max_len - len(seq)
+            seq = [x for x in seq] #if input is a string, convert it to an array
+            padded_msa.append( (str(i), seq + ["<mask>"] * remaining_len) )
         
-        args:
-            - out (torch.Tensor): tensor of logits of size seq_len x vocab_size
-            - gen_idx (int): location for which to generate for
-            - top_k (int): if >0, only sample from the top k most probable words
-            - sample (Bool): if True, sample from full distribution. Overridden by top_k 
-        """
-        #TODO: repetition penalty.
-        #TODO: this could be vectorized a lot better, but I think this isn't the rate limiting step (inferrence is), so it probably doesn't matter.
-
-        logits = out[gen_idx] # 1 x vocab_size
-        if temperature is not None:
-            logits = logits / temperature
-
-
-        if sample or (top_k <= 0) or (top_k > len(logits)): # If sample is true, that means we are forcing sampling from the whole distribution. if top_k is 0 that means we want to sample from the whole distribution.
-            top_k = len(logits)
-        else: # top_k is in bounds and we aren't forcing full sampling, so just keep it as it is.
-            top_k = top_k
-
-        kth_vals, kth_idx = logits.topk(top_k)  # kth_vals is the logits, kth_idx is the indexes at which the logits are found.
-        dist = torch.distributions.categorical.Categorical(logits=kth_vals)
-        idx = kth_idx[dist.sample()]
-
-        return idx
-
-    def get_init_seq(self, seed_msa, max_len, batch_size = 1):
-        """ Get initial sequence by expanding into a batch."""
-        
-        # batch = [(str(i), seed_seq + ["<mask>"] * remaining_len) for i in range(batch_size)]
-        batch = list()
-        for i in range(len(seed_msa)):
-            remaining_len = max_len - len(seed_seq)
-            seed_seq = [x for x in seed_seq] #if input is a string, convert it to an array
-            batch = [(str(i), seed_seq + ["<mask>"] * remaining_len) for i in range(batch_size)]
-            [ (str(i), seed_msa[i] + ["<mask>"] * remaining_len ) ]
-        
-        labels, strs, tokens = self.model.batch_converter(batch * batch_size)
+        labels, strs, tokens = self.model.batch_converter([padded_msa] * batch_size)
         return tokens
 
     def generate(self, n_samples, seed_msa, batch_size=1, in_order=False, max_len=None, leader_length=0, leader_length_percent=None, top_k=0, temperature=None, num_iters=10,  burnin=float('inf'),
@@ -83,7 +68,7 @@ class ESM_MSA_sampler():
         """ generate sequences
 
             n_samples: number of sequences to output
-            seed_msa: protein msa to start from
+            seed_seq: protein msa to start from
             batch_size: how many copies of the seed msa to run at one time.
             in_order: if True then cycle through the positions in order, otherwise randomly select positions each iteration
             max_len: maximum size of each generated sequence. If None, then use the length of the longest input msa.
@@ -120,6 +105,9 @@ class ESM_MSA_sampler():
                 out = sampler.generate(1, seed_seq=seed, batch_size=1, max_len=product_length, in_order=True, top_k=0, leader_length=len(seed), num_positions=product_length-len(seed), num_iters=1, mask=True)
         """
 
+
+        #TODO: CONVERT THIS TO MSA!
+
         #TODO: repetition penalty, somehow?
         #TODO: add dilated sequential sampling, like sampling every third or fifth amino acid and then doing the whole protein in like 3 or 5 steps, or something like that.
         with torch.no_grad(): # I'm not sure if this no_grad is necessary or not, but it couldn't hurt!
@@ -144,7 +132,7 @@ class ESM_MSA_sampler():
 
             for batch_n in trange(n_batches):
 
-                batch = msa_alphabet.get_batch_converter() # self.get_init_seq(seed_seq, max_len, batch_size)
+                batch = self.get_init_seq(seed_seq, max_len, batch_size)
                 batch = batch.cuda() if cuda else batch
 
                 if indexes is None:
@@ -188,7 +176,7 @@ class ESM_MSA_sampler():
                     
                     for batch_index in range(batch_size):
                         for kk in target_indexes[batch_index]:
-                            idx = self.generate_step(out, gen_idx=kk, top_k=top_k, temperature=temperature, sample=(ii < burnin))
+                            idx = generate_step(out[batch_index], gen_idx=kk, top_k=top_k, temperature=temperature, sample=(ii < burnin))
                             batch[batch_index][kk] = idx
                 if batch_n == (n_batches - 1): #last batch, so maybe don't take all of them, just take enough to get to n_samples
                     sequences += self.untokenize_batch(batch)[0:n_samples - len(sequences)]

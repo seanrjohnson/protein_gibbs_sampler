@@ -28,7 +28,7 @@ def main(input_h, output_p, args):
             
             input_msa = parse_fasta(line[2], clean=clean_flag)
 
-            input_msa = SequenceSubsetter.subset(input_msa, args.alignment_size, args.keep_first_sequence, args.sampling_strategy)
+            input_msa = SequenceSubsetter.subset(input_msa, args.alignment_size, args.keep_first_sequence, args.subset_strategy)
 
             sequences = gibbs_sampler.generate(args.num_output_sequences, seed_msa=input_msa, batch_size=args.batch_size, **line_args)
             write_sequential_fasta( output_p / (name + ".fasta"), sequences )
