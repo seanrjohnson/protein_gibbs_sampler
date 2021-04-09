@@ -36,7 +36,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-o", default=".", help="a directory to save the outputs in")
     parser.add_argument("-i", default=None, help="tab separated file where the columns are as follows: [sample name] \\t [dict of arguments for the sampler] \\t [path to seed msa in fasta or a2m format].")
-    parser.add_argument("--batch_size", type=int, default=1, required=True, help="batch size for sampling (sequences per iteration).")
+    parser.add_argument("--batch_size", type=int, default=1, required=True, help="batch size for sampling (msa instances per iteration).")
     parser.add_argument("--num_output_sequences", type=int, default=1, required=True, help="total number of sequences to generate.")
     parser.add_argument("--device", type=str, default="cpu", choices={"cpu","gpu"}, required=True, help="cpu or gpu")
     parser.add_argument("--model", type=str, default="esm_msa1", choices={"esm_msa1"}, help="which model to use")

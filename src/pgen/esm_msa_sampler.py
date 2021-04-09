@@ -13,8 +13,6 @@ class ESM_MSA_sampler():
             model should be an object with parameters model, alphabet, and batch_converter
         """
         
-        #CONVERTED TO MSA  (but not tested)
-
         self.model = model
 
         #switch model to eval mode
@@ -37,7 +35,6 @@ class ESM_MSA_sampler():
     def untokenize_batch(self, batch): #TODO: maybe should be moved to the model class, or a model superclass?
         #convert tokens to AAs, but skip the first one, because that one is <cls>
         
-        #CONVERTED TO MSA  (but not tested)
 
         out_batch = list()
         for batch_index in range(len(batch)):
@@ -50,7 +47,6 @@ class ESM_MSA_sampler():
     def get_init_msa(self, seed_msa, max_len, batch_size = 1):
         """ Get initial msa by padding seed_seq with masks, and then tokenizing."""
         
-        #CONVERTED TO MSA (but not tested)
 
         padded_msa = list()
         for i, seq in enumerate(seed_msa):
@@ -66,7 +62,7 @@ class ESM_MSA_sampler():
         """ generate sequences
 
             n_samples: number of sequences to output
-            seed_seq: protein msa to start from
+            seed_msa: protein msa to start from
             batch_size: how many copies of the seed msa to run at one time.
             in_order: if True then cycle through the positions in order, otherwise randomly select positions each iteration
             max_len: maximum size of each generated sequence. If None, then use the length of the longest input msa.
@@ -82,29 +78,14 @@ class ESM_MSA_sampler():
             indexes: positions of the input sequence to modify. 1-indexed, if None then all positions after the leader.
 
             #### Examples #####
-            seed = "MTSENPLLALREKISALDEKLLALLAERRELAVEVGKAKLLSHRPVRDIDRERDLLERLITLGKAHHLDAHYITRLFQLIIEDSVLTQQALLQQH"
-
-            #To generate AAs one position at a time in order:
-                sampler.generate(n_samples=1, seed_seq=seed, batch_size=1, in_order=True, num_positions=1, num_iters=len(seed), mask=True)
-            #To generate the entire protein at once:
-                sampler.generate(n_samples=1, seed_seq=seed, batch_size=1, max_len=len(seed), in_order=True, num_positions=len(seed), num_iters=1, mask=False)
-            #To go 15 iterations over the protein where a 10% of AAs randomly distributed through the protein are mutated on each iteration:
-                sampler.generate(n_samples=1, seed_seq=seed, batch_size=1, max_len=len(seed), in_order=False, num_positions=int(len(seed)/10), num_iters=15, mask=False)
-            #To go 15 iterations over the protein where a 10% of AAs randomly distributed through the protein are mutated on each iteration, and k=0 for the first 5 iterations, but k=1 for the remaining:
-                sampler.generate(n_samples=1, seed_seq=seed, batch_size=1, max_len=len(seed), in_order=False, num_positions=int(len(seed)/10), num_iters=15, burnin=5, mask=False)
-            
-            #### Sequence Completion ####
-            seed = "MTSENPLLALREKISALDEKLLALLAERRELAVE"
-            product_length = 95
-
-            #generate L->R one at a time
-                out = sampler.generate(1, seed_seq=seed, batch_size=1, max_len=product_length, in_order=True, top_k=0, leader_length=len(seed), num_positions=1, num_iters=product_length-len(seed), mask=True)
-            #generate all at a time
-                out = sampler.generate(1, seed_seq=seed, batch_size=1, max_len=product_length, in_order=True, top_k=0, leader_length=len(seed), num_positions=product_length-len(seed), num_iters=1, mask=True)
+            seed = ["MTSENPLLALREKISALDEKLLALLAERRE-AVEVGKAKLLS-RPVRDIDRERDLLERLITLGKAHHLDAHYITRLFQLIIEDSVL-QQALLQQH",
+                    "MSEEENLKTCREKL---DDKIIKLLAERFKIAEAIGKYKAENGLQIYDPKRERDILEHLEKKAEAEGLDAKYIRELFKKIIELGKKYQLLKLKEK",
+                    "MSQPNDLPSLRERIDALDRRLVALLAERAQTVHEVGRLKAERGLPPRDPAREARLLER---LGREAELDPHLAERLWQAMIAELIERHRRLLADR",
+                    "MSDPDPLAAARERIKALDEQLLALLA---ACALEVGRLKATHGLPVRDPERERALLERLLAQGEALGLSPEETRRLFEILIEESRRRQTRLLEQD"
+                    ]
+            #TODO: add some specific examples
         """
 
-
-        #TODO: CONVERT THIS TO MSA!
 
         #TODO: repetition penalty, somehow?
         #TODO: add dilated sequential sampling, like sampling every third or fifth amino acid and then doing the whole protein in like 3 or 5 steps, or something like that.

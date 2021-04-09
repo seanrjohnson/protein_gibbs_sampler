@@ -1,6 +1,5 @@
 import torch
 import math
-import time
 import random
 from tqdm import trange
 
@@ -126,19 +125,19 @@ class ESM_sampler():
         #TODO: repetition penalty, somehow?
         #TODO: add dilated sequential sampling, like sampling every third or fifth amino acid and then doing the whole protein in like 3 or 5 steps, or something like that.
         with torch.no_grad(): # I'm not sure if this no_grad is necessary or not, but it couldn't hurt!
+            sequence_length = len(seed_seq)
 
             cuda = self.cuda
             sequences = []
             n_batches = math.ceil(n_samples / batch_size)
-            start_time = time.time()
             
             if num_positions_percent is not None:
-                num_positions = int(len(seed_seq)*(num_positions_percent / 100))
+                num_positions = int(sequence_length*(num_positions_percent / 100))
             if num_positions < 0:
                 num_positions = 0
 
             if leader_length_percent is not None:
-                leader_length = int(len(seed_seq)*(leader_length_percent / 100))
+                leader_length = int(sequence_length*(leader_length_percent / 100))
             if leader_length < 0:
                 leader_length = 0
             
