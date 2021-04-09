@@ -1,6 +1,5 @@
 import torch
 import math
-import time
 import random
 from tqdm import trange
 from pgen.esm_sampler import generate_step
@@ -43,10 +42,9 @@ class ESM_MSA_sampler():
         out_batch = list()
         for batch_index in range(len(batch)):
             msa = batch[batch_index]
-            out_msa = [ "".join([self.model.alphabet.get_tok(seq[i]) for i in range(1,len(seq)) ]) for seq in msa]
-            out_batch.append(out_msa)
+            out_batch += [ "".join([self.model.alphabet.get_tok(seq[i]) for i in range(1,len(seq)) ]) for seq in msa]
 
-        return out
+        return out_batch
 
 
     def get_init_msa(self, seed_msa, max_len, batch_size = 1):
@@ -112,27 +110,30 @@ class ESM_MSA_sampler():
         #TODO: add dilated sequential sampling, like sampling every third or fifth amino acid and then doing the whole protein in like 3 or 5 steps, or something like that.
         with torch.no_grad(): # I'm not sure if this no_grad is necessary or not, but it couldn't hurt!
 
+            sequence_length = len(seed_msa[0])
+            num_sequences = len(seed_msa)
             cuda = self.cuda
             sequences = []
-            n_batches = math.ceil(n_samples / batch_size)
-            start_time = time.time()
-            
+            n_batches = math.ceil(n_samples / num_sequences / batch_size)
+
             if num_positions_percent is not None:
-                num_positions = int(len(seed_seq)*(num_positions_percent / 100))
+                num_positions = int(sequence_length*(num_positions_percent / 100))
             if num_positions < 0:
                 num_positions = 0
 
             if leader_length_percent is not None:
-                leader_length = int(len(seed_seq)*(leader_length_percent / 100))
+                leader_length = int(sequence_length*(leader_length_percent / 100))
             if leader_length < 0:
                 leader_length = 0
-            
+
             if max_len is None:
-                max_len = len(seed_seq)
+                max_len = sequence_length
+
 
             for batch_n in trange(n_batches):
 
-                batch = self.get_init_seq(seed_seq, max_len, batch_size)
+                # shape: (batch, sequences, sequence_len)
+                batch = self.get_init_msa(seed_msa, max_len, batch_size)
                 batch = batch.cuda() if cuda else batch
 
                 if indexes is None:
@@ -144,14 +145,15 @@ class ESM_MSA_sampler():
                         last_i = -1
                 else:
                     last_i = -1
-                
+
                 if num_positions > len(indexes):
                     num_positions = len(indexes)
+
 
                 for ii in range(num_iters):
                     if num_positions > 0: #do some subset of positions
                         if in_order: #cycle through the indexes
-                            next_i = last_i 
+                            next_i = last_i
                             sampled = 0
                             target_indexes = list()
                             while sampled < num_positions:
@@ -159,25 +161,33 @@ class ESM_MSA_sampler():
                                 next_i = (next_i+1) % len(indexes)
                                 target_indexes.append(indexes[next_i])
                             last_i = next_i
-                            target_indexes = [target_indexes] * batch_size
+                            for b in range(batch_size):
+                                target_indexes.append([indexes] * num_sequences)
                         else:
                             target_indexes = list()
                             for b in range(batch_size):
-                                target_indexes.append(random.sample(indexes, num_positions))
+                                batch_indexes = list()
+                                for s in range(num_sequences):
+                                    batch_indexes.append(random.sample(indexes, num_positions))
+                                target_indexes.append(batch_indexes)
                     else:
-                        target_indexes = [indexes] * batch_size
-                    
-                    if mask:
-                        for batch_index in range(len(target_indexes)):
-                            for kk in target_indexes[batch_index]:
-                                batch[b,kk] = self.model.alphabet.mask_idx
+                        for b in range(batch_size):
+                            target_indexes.append([indexes] * num_sequences)
 
+                    if mask:
+                        for batch_index in range(batch_size):
+                            for sequence_index in range(num_sequences):
+                                for kk in target_indexes[batch_index][sequence_index]:
+                                    batch[batch_index, sequence_index, kk] = self.model.alphabet.mask_idx
+
+                    # shape: (batch, sequences, sequence_len, alphabet_digits)
                     out = self.model.model(batch)["logits"]
-                    
+
                     for batch_index in range(batch_size):
-                        for kk in target_indexes[batch_index]:
-                            idx = generate_step(out[batch_index], gen_idx=kk, top_k=top_k, temperature=temperature, sample=(ii < burnin))
-                            batch[batch_index][kk] = idx
+                        for sequence_index in range(num_sequences):
+                            for kk in target_indexes[batch_index][sequence_index]:
+                                idx = generate_step(out[batch_index][sequence_index], gen_idx=kk, top_k=top_k, temperature=temperature, sample=(ii < burnin))
+                                batch[batch_index][sequence_index][kk] = idx
                 if batch_n == (n_batches - 1): #last batch, so maybe don't take all of them, just take enough to get to n_samples
                     sequences += self.untokenize_batch(batch)[0:n_samples - len(sequences)]
                 else:
