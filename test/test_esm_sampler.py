@@ -14,10 +14,6 @@ def esm_sampler_fixture(esm6, scope="session"):
     sampler = esm_sampler.ESM_sampler(esm6, device="cpu")
     return sampler
 
-@pytest.fixture
-def mock_no_gpu(monkeypatch):
-    monkeypatch.setattr("torch.cuda.is_available", lambda: False) 
-
 
 
 ###### Tests #######
@@ -62,3 +58,25 @@ def test_generate_batch_greater_than_seqs(esm_sampler_fixture):
 
 #def test_esm34_gpu(esm34):
 #    gpu_model = esm34.model.cuda()
+
+
+def test_get_target_index_in_order(esm_sampler_fixture):
+    sampler = esm_sampler_fixture
+    last_i, target_indexes = sampler.get_target_index_in_order(
+        batch_size=2, indexes=[0,1,2,3], next_i=1, num_positions=2)
+
+    assert len(target_indexes) == 2
+    assert last_i == 3
+    assert target_indexes == [[2, 3], [2, 3]]
+
+
+def test_get_target_index_randomly(esm_sampler_fixture):
+    sampler = esm_sampler_fixture
+    indexes = [0,1,2,3]
+    target_indexes = sampler.get_random_target_index(
+        batch_size=2, indexes=indexes, num_positions=3)
+
+    assert len(target_indexes) == 2
+    assert len(target_indexes[0]) == 3
+    for item in target_indexes[0]:
+        assert item in indexes

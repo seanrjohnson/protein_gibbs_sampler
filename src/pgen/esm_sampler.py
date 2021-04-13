@@ -140,51 +140,33 @@ class ESM_sampler():
                 leader_length = int(sequence_length*(leader_length_percent / 100))
             if leader_length < 0:
                 leader_length = 0
-            
+
             if max_len is None:
-                max_len = len(seed_seq)
+                max_len = sequence_length
 
             for batch_n in trange(n_batches):
 
                 batch = self.get_init_seq(seed_seq, max_len, batch_size)
                 batch = batch.cuda() if cuda else batch
 
-                if indexes is None:
-                    indexes = range(1,max_len+1) #skip position 1, because that should be <cls>
-                    if rollover_from_start == False: #we rollover from the end of the leader sequence
-                        indexes = [i for i in indexes if i > leader_length]
-                        last_i = leader_length - 1
-                    else:
-                        last_i = -1
-                else:
-                    last_i = -1
-                
+                indexes, last_i = self.calculate_indexes(indexes, leader_length, max_len, rollover_from_start)
+
                 if num_positions > len(indexes):
                     num_positions = len(indexes)
 
                 for ii in range(num_iters):
                     if num_positions > 0: #do some subset of positions
                         if in_order: #cycle through the indexes
-                            next_i = last_i 
-                            sampled = 0
-                            target_indexes = list()
-                            while sampled < num_positions:
-                                sampled += 1
-                                next_i = (next_i+1) % len(indexes)
-                                target_indexes.append(indexes[next_i])
-                            last_i = next_i
-                            target_indexes = [target_indexes] * batch_size
+                            next_i = last_i
+                            last_i, target_indexes = self.get_target_pos_in_order(batch_size, indexes, next_i,
+                                                                                  num_positions)
                         else:
-                            target_indexes = list()
-                            for b in range(batch_size):
-                                target_indexes.append(random.sample(indexes, num_positions))
+                            target_indexes = self.get_random_target_index(batch_size, indexes, num_positions)
                     else:
                         target_indexes = [indexes] * batch_size
                     
                     if mask:
-                        for batch_index in range(len(target_indexes)):
-                            for kk in target_indexes[batch_index]:
-                                batch[b,kk] = self.model.alphabet.mask_idx
+                        self.mask_target_indexes(batch, target_indexes)
 
                     out = self.model.model(batch)["logits"]
                     
@@ -197,4 +179,38 @@ class ESM_sampler():
                 else:
                     sequences += self.untokenize_batch(batch)
             return sequences
+
+    def get_random_target_index(self, batch_size, indexes, num_positions):
+        target_indexes = list()
+        for b in range(batch_size):
+            target_indexes.append(random.sample(indexes, num_positions))
+        return target_indexes
+
+    def get_target_index_in_order(self, batch_size, indexes, next_i, num_positions):
+        sampled = 0
+        target_indexes = list()
+        while sampled < num_positions:
+            sampled += 1
+            next_i = (next_i + 1) % len(indexes)
+            target_indexes.append(indexes[next_i])
+        target_indexes = [target_indexes] * batch_size
+        last_i = next_i
+        return last_i, target_indexes
+
+    def mask_target_indexes(self, batch, target_indexes):
+        for batch_index in range(len(target_indexes)):
+            for kk in target_indexes[batch_index]:
+                batch[batch_index, kk] = self.model.alphabet.mask_idx
+
+    def calculate_indexes(self, indexes, leader_length, max_len, rollover_from_start):
+        if indexes is None:
+            indexes = range(1, max_len + 1)  # skip position 1, because that should be <cls>
+            if rollover_from_start == False:  # we rollover from the end of the leader sequence
+                indexes = [i for i in indexes if i > leader_length]
+                last_i = leader_length - 1
+            else:
+                last_i = -1
+        else:
+            last_i = -1
+        return indexes, last_i
 

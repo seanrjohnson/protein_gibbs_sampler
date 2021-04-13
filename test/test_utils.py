@@ -1,5 +1,4 @@
 import pytest
-import torch
 from pgen import utils
 import io
 

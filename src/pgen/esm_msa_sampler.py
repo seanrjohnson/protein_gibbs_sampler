@@ -7,12 +7,11 @@ from pgen.esm_sampler import generate_step
 
 class ESM_MSA_sampler():
     """adapted from bert-gen bert-babble.ipynb"""
-    
+
     def __init__(self, model, device="cpu"):
         """
             model should be an object with parameters model, alphabet, and batch_converter
         """
-        
         self.model = model
 
         #switch model to eval mode
@@ -34,12 +33,10 @@ class ESM_MSA_sampler():
 
     def untokenize_batch(self, batch): #TODO: maybe should be moved to the model class, or a model superclass?
         #convert tokens to AAs, but skip the first one, because that one is <cls>
-        
 
         out_batch = list()
-        for batch_index in range(len(batch)):
-            msa = batch[batch_index]
-            out_batch += [ "".join([self.model.alphabet.get_tok(seq[i]) for i in range(1,len(seq)) ]) for seq in msa]
+        for msa in batch:
+            out_batch += ["".join([self.model.alphabet.get_tok(itm) for itm in seq[1:]]) for seq in msa]
 
         return out_batch
 
@@ -51,7 +48,7 @@ class ESM_MSA_sampler():
         padded_msa = list()
         for i, seq in enumerate(seed_msa):
             remaining_len = max_len - len(seq)
-            seq = [x for x in seq] #if input is a string, convert it to an array
+            seq = list(seq) #if input is a string, convert it to an array
             padded_msa.append( (str(i), seq + ["<mask>"] * remaining_len) )
         
         labels, strs, tokens = self.model.batch_converter([padded_msa] * batch_size)
@@ -91,8 +88,9 @@ class ESM_MSA_sampler():
         #TODO: add dilated sequential sampling, like sampling every third or fifth amino acid and then doing the whole protein in like 3 or 5 steps, or something like that.
         with torch.no_grad(): # I'm not sure if this no_grad is necessary or not, but it couldn't hurt!
 
-            sequence_length = len(seed_msa[0])
             num_sequences = len(seed_msa)
+            sequence_length = len(seed_msa[0])
+
             cuda = self.cuda
             sequences = []
             n_batches = math.ceil(n_samples / num_sequences / batch_size)
@@ -109,7 +107,6 @@ class ESM_MSA_sampler():
 
             if max_len is None:
                 max_len = sequence_length
-
 
             for batch_n in trange(n_batches):
 
@@ -135,31 +132,16 @@ class ESM_MSA_sampler():
                     if num_positions > 0: #do some subset of positions
                         if in_order: #cycle through the indexes
                             next_i = last_i
-                            sampled = 0
-                            target_indexes = list()
-                            while sampled < num_positions:
-                                sampled += 1
-                                next_i = (next_i+1) % len(indexes)
-                                target_indexes.append(indexes[next_i])
-                            last_i = next_i
-                            for b in range(batch_size):
-                                target_indexes.append([indexes] * num_sequences)
+                            last_i, target_indexes = self.get_target_index_in_order(batch_size, indexes, next_i,
+                                                                                    num_positions, num_sequences)
                         else:
-                            target_indexes = list()
-                            for b in range(batch_size):
-                                batch_indexes = list()
-                                for s in range(num_sequences):
-                                    batch_indexes.append(random.sample(indexes, num_positions))
-                                target_indexes.append(batch_indexes)
+                            target_indexes = self.get_random_target_index(batch_size, indexes, num_positions,
+                                                                          num_sequences)
                     else:
-                        for b in range(batch_size):
-                            target_indexes.append([indexes] * num_sequences)
+                        target_indexes = self.get_target_indexes_all_positions(batch_size, indexes, num_sequences)
 
                     if mask:
-                        for batch_index in range(batch_size):
-                            for sequence_index in range(num_sequences):
-                                for kk in target_indexes[batch_index][sequence_index]:
-                                    batch[batch_index, sequence_index, kk] = self.model.alphabet.mask_idx
+                        self.mask_target_indexes(batch, target_indexes)
 
                     # shape: (batch, sequences, sequence_len, alphabet_digits)
                     out = self.model.model(batch)["logits"]
@@ -174,4 +156,38 @@ class ESM_MSA_sampler():
                 else:
                     sequences += self.untokenize_batch(batch)
             return sequences
+
+    def mask_target_indexes(self, batch, target_indexes):
+        for batch_index in range(len(batch)):
+            for sequence_index in range(len(batch[batch_index])):
+                for kk in target_indexes[batch_index][sequence_index]:
+                    batch[batch_index, sequence_index, kk] = self.model.alphabet.mask_idx
+
+    def get_target_indexes_all_positions(self, batch_size, indexes, num_sequences):
+        target_indexes = list()
+        for b in range(batch_size):
+            target_indexes.append([indexes] * num_sequences)
+        return target_indexes
+
+    def get_random_target_index(self, batch_size, indexes, num_positions, num_sequences):
+        target_indexes = list()
+        for b in range(batch_size):
+            batch_indexes = list()
+            for s in range(num_sequences):
+                batch_indexes.append(random.sample(indexes, num_positions))
+            target_indexes.append(batch_indexes)
+        return target_indexes
+
+    def get_target_index_in_order(self, batch_size, indexes, next_i, num_positions, num_sequences):
+        target_indexes = list()
+        sampled = 0
+        indexes_per_sequence = list()
+        while sampled < num_positions:
+            sampled += 1
+            next_i = (next_i + 1) % len(indexes)
+            indexes_per_sequence.append(indexes[next_i])
+        for b in range(batch_size):
+            target_indexes.append([indexes_per_sequence] * num_sequences)
+        last_i = next_i
+        return last_i, target_indexes
 
