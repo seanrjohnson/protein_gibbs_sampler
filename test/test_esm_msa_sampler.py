@@ -12,6 +12,7 @@ def msa_sampler(esm_msa):
     sampler = esm_msa_sampler.ESM_MSA_sampler(esm_msa, device="cpu")
     return sampler
 
+
 ###### Tests #######
 
 def test_untokenize_batch(msa_sampler):
@@ -24,6 +25,7 @@ def test_untokenize_batch(msa_sampler):
     result = msa_sampler.untokenize_batch(input_batch)
     expected_result = ["AAA<mask><mask>", "ABB<mask><mask>", "ABCD<mask>"]
     assert result == expected_result
+
 
 def test_get_init_msa(msa_sampler):
     seed = ["AAA", "ABB", "ABCD"]
@@ -41,6 +43,24 @@ def test_get_init_msa(msa_sampler):
 
 def test_generate_batch_equals_seqs(msa_sampler):
     out = msa_sampler.generate(4, ["AAA", "AAB"], batch_size=4, max_len=3)
+
+    assert (len(out) == 4)
+    for s in out:
+        assert (len(s) == 3)
+
+
+@pytest.mark.parametrize("batch_size, num_positions,mask,leader_length,in_order",
+                         [
+                             (3, 1, True, 1, True),
+                             (3, 1, False, 1, True),
+                             (3, 1, True, 1, False),
+                             (3, 1, False, 1, False),
+                             (3, 1, True, -1, False),
+                             (10, 3, False, 1, False)
+                         ])
+def test_generate_batch_with_varying_input(msa_sampler, batch_size, num_positions, mask, leader_length, in_order):
+    out = msa_sampler.generate(4, ["AAA", "AAB"], batch_size=batch_size, max_len=3, num_iters=2,
+                               num_positions=num_positions, mask=mask, leader_length=leader_length, in_order=in_order)
 
     assert (len(out) == 4)
     for s in out:
@@ -77,6 +97,7 @@ def test_get_target_indexes_in_order(msa_sampler):
         [[2, 3], [2, 3], [2, 3]]
     ]
 
+
 def test_get_target_indexes_randomly(msa_sampler):
     indexes = [0,1,2,3]
     target_indexes = msa_sampler.get_random_target_index(
@@ -90,6 +111,7 @@ def test_get_target_indexes_randomly(msa_sampler):
     for item in target_indexes[0][0]:
         assert item in indexes
 
+
 def test_get_target_indexes_all_positions(msa_sampler):
     target_indexes = msa_sampler.get_target_indexes_all_positions(
         batch_size=2, indexes=[0, 1, 2, 3], num_sequences=3)
@@ -99,4 +121,53 @@ def test_get_target_indexes_all_positions(msa_sampler):
         [[0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3]]
     ]
 
-# TODO test masking
+
+def test_mask_indexes(msa_sampler):
+    batch = [
+        [[1, 1, 1, 1], [1, 1, 1, 1], [1, 1, 1, 1]],
+        [[1, 1, 1, 1], [1, 1, 1, 1], [1, 1, 1, 1]]
+    ]
+    target_indexes = [
+        [[2, 3], [1, 2], [0, 1]],
+        [[0, 1], [2, 1], [3, 2]]
+    ]
+    msa_sampler.mask_target_indexes(batch, target_indexes)
+
+    assert batch == [
+        [[1, 1, 32, 32], [1, 32, 32, 1], [32, 32, 1, 1]],
+        [[32, 32, 1, 1], [1, 32, 32, 1], [1, 1, 32, 32]]
+    ]
+
+
+def test_calculate_indexes_no_rollover(msa_sampler):
+    indexes = None
+    leader_length = 1
+    max_len = 5
+    rollover = False
+
+    out_indexes, last_i = msa_sampler.calculate_indexes(indexes, leader_length, max_len, rollover)
+
+    assert out_indexes == [2, 3, 4, 5]
+    assert last_i == 0
+
+def test_calculate_indexes_with_rollover(msa_sampler):
+    indexes = None
+    leader_length = 1
+    max_len = 5
+    rollover = True
+
+    out_indexes, last_i = msa_sampler.calculate_indexes(indexes, leader_length, max_len, rollover)
+
+    assert out_indexes == [1, 2, 3, 4, 5]
+    assert last_i == -1
+
+def test_calculate_indexes_when_indexes_supplied(msa_sampler):
+    indexes = [2, 3, 4, 5]
+    leader_length = 1
+    max_len = 5
+    rollover = False
+
+    out_indexes, last_i = msa_sampler.calculate_indexes(indexes, leader_length, max_len, rollover)
+
+    assert out_indexes == [2, 3, 4, 5]
+    assert last_i == -1

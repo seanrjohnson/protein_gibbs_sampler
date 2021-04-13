@@ -158,7 +158,7 @@ class ESM_sampler():
                     if num_positions > 0: #do some subset of positions
                         if in_order: #cycle through the indexes
                             next_i = last_i
-                            last_i, target_indexes = self.get_target_pos_in_order(batch_size, indexes, next_i,
+                            last_i, target_indexes = self.get_target_index_in_order(batch_size, indexes, next_i,
                                                                                   num_positions)
                         else:
                             target_indexes = self.get_random_target_index(batch_size, indexes, num_positions)
@@ -200,13 +200,13 @@ class ESM_sampler():
     def mask_target_indexes(self, batch, target_indexes):
         for batch_index in range(len(target_indexes)):
             for kk in target_indexes[batch_index]:
-                batch[batch_index, kk] = self.model.alphabet.mask_idx
+                batch[batch_index][kk] = self.model.alphabet.mask_idx
 
     def calculate_indexes(self, indexes, leader_length, max_len, rollover_from_start):
         if indexes is None:
             indexes = range(1, max_len + 1)  # skip position 1, because that should be <cls>
-            if rollover_from_start == False:  # we rollover from the end of the leader sequence
-                indexes = [i for i in indexes if i > leader_length]
+            if not rollover_from_start:  # we rollover from the end of the leader sequence
+                indexes = indexes[leader_length:]
                 last_i = leader_length - 1
             else:
                 last_i = -1

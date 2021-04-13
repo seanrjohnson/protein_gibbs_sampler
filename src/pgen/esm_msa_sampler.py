@@ -114,15 +114,7 @@ class ESM_MSA_sampler():
                 batch = self.get_init_msa(seed_msa, max_len, batch_size)
                 batch = batch.cuda() if cuda else batch
 
-                if indexes is None:
-                    indexes = range(1,max_len+1) #skip position 1, because that should be <cls>
-                    if rollover_from_start == False: #we rollover from the end of the leader sequence
-                        indexes = [i for i in indexes if i > leader_length]
-                        last_i = leader_length - 1
-                    else:
-                        last_i = -1
-                else:
-                    last_i = -1
+                indexes, last_i = self.calculate_indexes(indexes, leader_length, max_len, rollover_from_start)
 
                 if num_positions > len(indexes):
                     num_positions = len(indexes)
@@ -161,7 +153,7 @@ class ESM_MSA_sampler():
         for batch_index in range(len(batch)):
             for sequence_index in range(len(batch[batch_index])):
                 for kk in target_indexes[batch_index][sequence_index]:
-                    batch[batch_index, sequence_index, kk] = self.model.alphabet.mask_idx
+                    batch[batch_index][sequence_index][kk] = self.model.alphabet.mask_idx
 
     def get_target_indexes_all_positions(self, batch_size, indexes, num_sequences):
         target_indexes = list()
@@ -191,3 +183,14 @@ class ESM_MSA_sampler():
         last_i = next_i
         return last_i, target_indexes
 
+    def calculate_indexes(self, indexes, leader_length, max_len, rollover_from_start):
+        if indexes is None:
+            indexes = list(range(1, max_len + 1))  # skip position 1, because that should be <cls>
+            if not rollover_from_start:  # we rollover from the end of the leader sequence
+                indexes = indexes[leader_length:]
+                last_i = leader_length - 1
+            else:
+                last_i = -1
+        else:
+            last_i = -1
+        return indexes, last_i
