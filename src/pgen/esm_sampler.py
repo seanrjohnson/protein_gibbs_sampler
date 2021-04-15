@@ -134,8 +134,10 @@ class ESM_sampler():
         with torch.no_grad(): # I'm not sure if this no_grad is necessary or not, but it couldn't hurt!
             if isinstance(seed_seq, str):
                 sequence_length = len(seed_seq)
-            else:
+            elif isinstance(seed_seq, list):
                 sequence_length = max(len(seed) for seed in seed_seq)
+            else:
+                print("Unknown seed sequence format, expecting str or list")
 
             cuda = self.cuda
             sequences = []
