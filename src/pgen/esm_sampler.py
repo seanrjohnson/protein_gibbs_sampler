@@ -69,10 +69,17 @@ class ESM_sampler():
         """ Get initial sequence by padding seed_seq with masks """
         #In the paper they talk about padding with random sequence. I'm not sure that's a good idea. S.R.J.
         # Also, that code was commented out in the BertGen repo. So they probably didn't think was a good idea either.
-        
-        remaining_len = max_len - len(seed_seq)
-        seed_seq = [x for x in seed_seq] #if input is a string, convert it to an array
-        batch = [(str(i), seed_seq + ["<mask>"] * remaining_len) for i in range(batch_size)]
+
+        if isinstance(seed_seq, list):
+            batch = random.choices(seed_seq, k=batch_size)
+            for i, seed in enumerate(batch):
+                remaining_len = max_len - len(seed)
+                batch[i] = (str(i), list(seed) + ["<mask>"] * remaining_len)
+
+        elif isinstance(seed_seq, str):
+            remaining_len = max_len - len(seed_seq)
+            seed_seq = [x for x in seed_seq] #if input is a string, convert it to an array
+            batch = [(str(i), seed_seq + ["<mask>"] * remaining_len) for i in range(batch_size)]
         
         #if rand_init:
         #    for ii in range(max_len):
@@ -125,7 +132,10 @@ class ESM_sampler():
         #TODO: repetition penalty, somehow?
         #TODO: add dilated sequential sampling, like sampling every third or fifth amino acid and then doing the whole protein in like 3 or 5 steps, or something like that.
         with torch.no_grad(): # I'm not sure if this no_grad is necessary or not, but it couldn't hurt!
-            sequence_length = len(seed_seq)
+            if isinstance(seed_seq, str):
+                sequence_length = len(seed_seq)
+            else:
+                sequence_length = max(len(seed) for seed in seed_seq)
 
             cuda = self.cuda
             sequences = []
