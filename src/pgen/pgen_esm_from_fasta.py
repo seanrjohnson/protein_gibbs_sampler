@@ -25,7 +25,7 @@ def main(input_h, output_p, args):
                     seed, gap_mask = unalign(seed)
                     generated_sequence = sampler.generate(n_samples=1, seed_seq=seed, batch_size=args.batch_size, **line_args)[0]
                     if args.keep_gap_positions:
-                        generated_sequence = add_gaps_back(seed, gap_mask)
+                        generated_sequence = add_gaps_back(generated_sequence, gap_mask)
                     sequences += [generated_sequence]
                 write_sequential_fasta( output_p / (name + ".fasta"), sequences )
 
