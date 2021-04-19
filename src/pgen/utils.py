@@ -159,6 +159,49 @@ def flatten_second_order(sos):
     out = np.zeros(sos.shape[2]*sos.shape[2])
     return out
 
+def unalign(sequence: str) -> (str,list):
+    """
+        input:
+            sequence: the starting sequence
+                if 'unalign' then convert to upper, delete ".", "*", "-"
+
+        output:
+            cleaned_sequence: the cleaned sequence
+            gap_mask: a list containing chars or None. The idea is that to get a sequence with gaps in the same places
+    """
+    upperified = sequence.upper()
+    acceptable = str.ascii_uppercase
+    cleaned_list = list()
+    gap_mask = list()
+    for c in upperified:
+        if c in str.ascii_uppercase:
+            cleaned_list.append(c)
+            gap_mask.append(None)
+        else:
+            gap_mask.append(c)
+    return "".join(cleaned_list), gap_mask
+
+def add_gaps_back(sequence: str, gap_mask: list) -> str:
+    """
+        input:
+            sequence: the cleaned sequence
+            gap_mask: a list containing chars or None. The idea is that to get a sequence with gaps in the same places
+        output:
+            a string of size len(gap_mask) where None positions have been replaced, in order, by characters from sequence.
+
+        example:
+            add_gaps_back("MTGQ", [None,'-','-',None,None,".","-",None,"*"])
+                = "M--TG.-Q*"
+    """
+    out = list()
+    for i,c in enumerate(gap_mask):
+        if c is None:
+            out.append(sequence[i])
+        else:
+            out.append(c)
+    return "".join(out)
+
+
 def parse_fasta(filename, return_names=False, clean=None): 
     """
         adapted from: https://bitbucket.org/seanrjohnson/srj_chembiolib/src/master/parsers.py
@@ -167,9 +210,10 @@ def parse_fasta(filename, return_names=False, clean=None):
         input:
             filename: the name of a fasta file or a filehandle to a fasta file.
             return_names: if True then return two lists: (names, sequences), otherwise just return list of 
-            clean: {None, 'upper', 'delete'}
+            clean: {None, 'upper', 'delete', 'unalign'}
                     if 'delete' then delete all lowercase "." and "*" characters. This is usually if the input is an a2m file and you don't want to preserve the original length.
                     if 'upper' then delete "*" characters, convert lowercase to upper case, and "." to "-"
+                    if 'unalign' then convert to upper, delete ".", "*", "-"
 
         output: sequences or names, sequences
     """
@@ -215,15 +259,22 @@ def parse_fasta(filename, return_names=False, clean=None):
             out_seqs[i] = remove_insertions(out_seqs[i])
     
     elif clean == 'upper':
-        deletekeys = dict.fromkeys(string.ascii_lowercase)
-        deletekeys["."] = '-'
-        deletekeys["*"] = None
+        deletekeys = {'*': None, ".": None}
         translation = str.maketrans(deletekeys)
         remove_insertions = lambda x: x.translate(translation)
 
         for i in range(len(out_seqs)):
             out_seqs[i] = remove_insertions(out_seqs[i].upper())
-
+    elif clean == 'unalign':
+        deletekeys = {'*': None, ".": None, "-": None}
+        
+        translation = str.maketrans(deletekeys)
+        remove_insertions = lambda x: x.translate(translation)
+        
+        for i in range(len(out_seqs)):
+            out_seqs[i] = remove_insertions(out_seqs[i].upper())
+    elif clean is not None:
+        raise ValueError(f"unrecognized input for clean parameter: {clean}")
 
     if return_names:
         return out_names, out_seqs
@@ -436,12 +487,27 @@ def generate_alignment(sequences, tmp_dir="/tmp"):
         raise(Exception)
     return parse_fasta_string(align_out.stdout.decode('utf-8'),True)
 
+# def delete_msa_end_gaps(msa: list, gapchars: str = "-.") -> list:
+#     """
+        
+#     """
+
+#     first_non_gap_overall = len(msa[0])
+#     last_non_gap_overall = 0
+#     for s in range(len(msa)):
+#         first_non_gap = None
+#         last_non_gap = None
+#         for i in range(len(msa[s])):
+#             if msa[s][i] in gapchars:
+#                 pass
+
+
 
 class SequenceSubsetter:
     subset_strategies = {"random","in_order"}
 
     @classmethod
-    def subset(cls, seq_list: list, n: int, keep_first: bool = False, strategy: str = "random", random_seed: int =None) -> list:
+    def subset(cls, seq_list: list, n: int, keep_first: bool = False, strategy: str = "random", random_seed: int = None) -> list:
         """
             input:
                 seq_list: a list of protein sequence strings
@@ -450,7 +516,12 @@ class SequenceSubsetter:
                 strategy: 
                     "random": take sequences randomly from seq_list (without replacement)
                     "in_order": take the top n sequences from seq_list
+                random_seed: provided to the random number generator.
+                
+                Not implemented:
+                delete_end_gaps: if supplied then truncates the alignment by deleting all positions before the first non-gap position in any sequnence and after the last non-gap position in any sequence.
         """
+        #TODO: implement delete_end_gaps
 
         output = list()
         if n <= 0:
@@ -469,5 +540,7 @@ class SequenceSubsetter:
             output += tmp_list[0:n]
         elif strategy == "in_order":
             output += tmp_list[0:n]
-
+        
+        # if delete_end_gaps:
+        #     output = delete_msa_endgaps(output)
         return output

@@ -26,17 +26,18 @@ def main(input_h, output_p, args):
 
                 input_msa = parse_fasta(line[2], clean=clean_flag)
 
-                input_msa = SequenceSubsetter.subset(input_msa, args.alignment_size, args.keep_first_sequence, args.subset_strategy)
-
-                sequences = gibbs_sampler.generate(args.num_output_sequences, seed_msa=input_msa, batch_size=args.batch_size, **line_args)
-                write_sequential_fasta( output_p / (name + ".fasta"), sequences )
+                batches = ceil(args.num_output_sequences / args.alignment_size )
+                for i in trange(batches):
+                    batch_msa = SequenceSubsetter.subset(input_msa, args.alignment_size, args.keep_first_sequence, args.subset_strategy)
+                    sequences += gibbs_sampler.generate(n_samples=len(batch_msa), seed_msa=batch_msa, batch_size=args.batch_size, show_progress_bar=False, **line_args)
+                write_sequential_fasta( output_p / (name + ".fasta"), sequences[0:args.num_output_sequences] )
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-o", default=".", help="a directory to save the outputs in")
     parser.add_argument("-i", default=None, help="tab separated file where the columns are as follows: [sample name] \\t [dict of arguments for the sampler] \\t [path to seed msa in fasta or a2m format].")
-    parser.add_argument("--batch_size", type=int, default=1, required=True, help="batch size for sampling (msa instances per iteration).")
+    parser.add_argument("--batch_size", type=int, default=1, required=True, choices={1,}, help="batch size for sampling (msa instances per iteration). Must be 1. This might change in the future.")
     parser.add_argument("--num_output_sequences", type=int, default=1, required=True, help="total number of sequences to generate.")
     parser.add_argument("--device", type=str, default="cpu", choices={"cpu","gpu"}, required=True, help="cpu or gpu")
     parser.add_argument("--model", type=str, default="esm_msa1", choices={"esm_msa1"}, help="which model to use")

@@ -88,7 +88,7 @@ class ESM_sampler():
         return tokens
 
     def generate(self, n_samples, seed_seq, batch_size=1, in_order=False, max_len=None, leader_length=0, leader_length_percent=None, top_k=0, temperature=None, num_iters=10,  burnin=float('inf'),
-                            mask=True, num_positions=0, num_positions_percent=None, indexes=None, rollover_from_start=False):
+                            mask=True, num_positions=0, num_positions_percent=None, indexes=None, rollover_from_start=False, show_progress_bar=True):
         """ generate sequences
 
             n_samples: number of sequences to output
@@ -106,6 +106,8 @@ class ESM_sampler():
             num_positions: generate new AAs for this many positions each iteration. If 0, then generate for all target positions each round.
             num_positions_percent: If not None, then set num_positions = int(len(seed_seq)*(num_positions_percent / 100))
             indexes: positions of the input sequence to modify. 1-indexed, if None then all positions after the leader.
+
+            show_progress_bar: if True then show a progress bar corresponding to the number of batches that need to be processed. Default: True.
 
             #### Examples #####
             seed = "MTSENPLLALREKISALDEKLLALLAERRELAVEVGKAKLLSHRPVRDIDRERDLLERLITLGKAHHLDAHYITRLFQLIIEDSVLTQQALLQQH"
@@ -137,7 +139,7 @@ class ESM_sampler():
             elif isinstance(seed_seq, list):
                 sequence_length = max(len(seed) for seed in seed_seq)
             else:
-                print("Unknown seed sequence format, expecting str or list")
+                raise ValueError("Unknown seed sequence format, expecting str or list")
 
             cuda = self.cuda
             sequences = []
@@ -156,7 +158,7 @@ class ESM_sampler():
             if max_len is None:
                 max_len = sequence_length
 
-            for batch_n in trange(n_batches):
+            for batch_n in trange(n_batches, disable=(not show_progress_bar)):
 
                 batch = self.get_init_seq(seed_seq, max_len, batch_size)
                 batch = batch.cuda() if cuda else batch
