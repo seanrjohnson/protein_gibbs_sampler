@@ -8,7 +8,7 @@ import shutil
 model_map = {"esm1b":models.ESM1b, "esm6":models.ESM6, "esm12":models.ESM12, "esm34":models.ESM34}
 
 def main(input_h, output_p, args):
-    device = args.device
+
     sampler = ESM_sampler(model_map[args.model](),device=args.device)
     with open(output_p / "specification.tsv","w") as output_h:
         for line in input_h:
