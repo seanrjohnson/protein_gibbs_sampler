@@ -24,7 +24,7 @@ def main(input_h, output_p, args):
                 for out_seq_i in trange(args.num_output_sequences):
                     seed = random.choice(seeds)
                     seed, gap_mask = unalign(seed)
-                    generated_sequence = sampler.generate(n_samples=1, seed_seq=seed, batch_size=args.batch_size, **line_args)[0]
+                    generated_sequence = sampler.generate(n_samples=1, seed_seq=seed, batch_size=args.batch_size, show_progress_bar=False, **line_args)[0]
                     if args.keep_gap_positions:
                         generated_sequence = add_gaps_back(generated_sequence, gap_mask)
                     sequences += [generated_sequence]
