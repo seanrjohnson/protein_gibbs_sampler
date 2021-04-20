@@ -5,6 +5,7 @@ from pgen.utils import write_sequential_fasta, parse_fasta, SequenceSubsetter
 from pathlib import Path
 import sys
 from tqdm import trange
+import math
 
 model_map = {"esm_msa1":models.ESM_MSA1}
 
@@ -27,7 +28,7 @@ def main(input_h, output_p, args):
 
                 input_msa = parse_fasta(line[2], clean=clean_flag)
 
-                batches = ceil(args.num_output_sequences / args.alignment_size )
+                batches = math.ceil(args.num_output_sequences / args.alignment_size )
                 for i in trange(batches):
                     batch_msa = SequenceSubsetter.subset(input_msa, args.alignment_size, args.keep_first_sequence, args.subset_strategy)
                     sequences += gibbs_sampler.generate(n_samples=len(batch_msa), seed_msa=batch_msa, batch_size=args.batch_size, show_progress_bar=False, **line_args)
