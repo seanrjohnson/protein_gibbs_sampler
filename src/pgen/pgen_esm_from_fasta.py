@@ -5,6 +5,7 @@ from pgen import models
 from pgen.utils import write_sequential_fasta, parse_fasta, unalign, add_gaps_back
 from pathlib import Path
 import random
+from tqdm import trange
 
 model_map = {"esm1b":models.ESM1b, "esm6":models.ESM6, "esm12":models.ESM12, "esm34":models.ESM34}
 

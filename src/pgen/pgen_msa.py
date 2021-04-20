@@ -4,6 +4,7 @@ from pgen import models
 from pgen.utils import write_sequential_fasta, parse_fasta, SequenceSubsetter
 from pathlib import Path
 import sys
+from tqdm import trange
 
 model_map = {"esm_msa1":models.ESM_MSA1}
 
