@@ -110,7 +110,7 @@ class ESM_MSA_sampler():
             if max_len is None:
                 max_len = sequence_length
 
-            for batch_n in trange(n_batches, disable=(not show_progress_bar):
+            for batch_n in trange(n_batches, disable=(not show_progress_bar)):
 
                 # shape: (batch, sequences, sequence_len)
                 batch = self.get_init_msa(seed_msa, max_len, batch_size)

@@ -4,7 +4,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 from typing import Dict
 import io
-import pandas as pd
+# import pandas as pd
 from pathlib import Path
 import uuid
 import subprocess
@@ -170,11 +170,11 @@ def unalign(sequence: str) -> (str,list):
             gap_mask: a list containing chars or None. The idea is that to get a sequence with gaps in the same places
     """
     upperified = sequence.upper()
-    acceptable = str.ascii_uppercase
+    acceptable = string.ascii_uppercase
     cleaned_list = list()
     gap_mask = list()
     for c in upperified:
-        if c in str.ascii_uppercase:
+        if c in string.ascii_uppercase:
             cleaned_list.append(c)
             gap_mask.append(None)
         else:
@@ -194,9 +194,11 @@ def add_gaps_back(sequence: str, gap_mask: list) -> str:
                 = "M--TG.-Q*"
     """
     out = list()
-    for i,c in enumerate(gap_mask):
+    seq_index = 0
+    for c in gap_mask:
         if c is None:
-            out.append(sequence[i])
+            out.append(sequence[seq_index])
+            seq_index += 1
         else:
             out.append(c)
     return "".join(out)
@@ -259,7 +261,7 @@ def parse_fasta(filename, return_names=False, clean=None):
             out_seqs[i] = remove_insertions(out_seqs[i])
     
     elif clean == 'upper':
-        deletekeys = {'*': None, ".": None}
+        deletekeys = {'*': None, ".": "-"}
         translation = str.maketrans(deletekeys)
         remove_insertions = lambda x: x.translate(translation)
 
@@ -311,158 +313,158 @@ def write_partitioned_fasta(path, sequences):
             for i, seq in enumerate(seqs):
                 print(f">{category}_{i}\n{seq}",file=fasta_out)
 
-def first_order_statistics(prefixes, names, seqs):
-    """
-        input: 
-            prefixes: a list of strings, such that each sequence name starts with one of the prefixes
-            names: list of sequence names
-            seqs: list of aligned sequences. Must all be of same length.
-        output: 
-            a data frame with index=['position','AA'], columns='prefix'
-            values are frequencies
-    """
+# def first_order_statistics(prefixes, names, seqs):
+#     """
+#         input: 
+#             prefixes: a list of strings, such that each sequence name starts with one of the prefixes
+#             names: list of sequence names
+#             seqs: list of aligned sequences. Must all be of same length.
+#         output: 
+#             a data frame with index=['position','AA'], columns='prefix'
+#             values are frequencies
+#     """
     
-    out_dict = dict() #{position: {AA: {prefix: [count] }}}
-    prefix_counts = {x:0 for x in prefixes}
+#     out_dict = dict() #{position: {AA: {prefix: [count] }}}
+#     prefix_counts = {x:0 for x in prefixes}
     
-    for i,name in enumerate(names):
-        prefix = None
-        for prfx in prefixes:
-            if name.startswith(prfx):
-                prefix = prfx
-                prefix_counts[prefix] += 1
-        if prefix is None:
-            raise(Exception(f"{name} does not have valid prefix"))
-        for pos_1,aa in enumerate(seqs[i]):
-            if pos_1 not in out_dict:
-                out_dict[pos_1] = dict()
-            if aa not in out_dict[pos_1]:
-                out_dict[pos_1][aa] = {prfx: 0 for prfx in prefixes}
-            out_dict[pos_1][aa][prefix] += 1
-    out_list = list()
+#     for i,name in enumerate(names):
+#         prefix = None
+#         for prfx in prefixes:
+#             if name.startswith(prfx):
+#                 prefix = prfx
+#                 prefix_counts[prefix] += 1
+#         if prefix is None:
+#             raise(Exception(f"{name} does not have valid prefix"))
+#         for pos_1,aa in enumerate(seqs[i]):
+#             if pos_1 not in out_dict:
+#                 out_dict[pos_1] = dict()
+#             if aa not in out_dict[pos_1]:
+#                 out_dict[pos_1][aa] = {prfx: 0 for prfx in prefixes}
+#             out_dict[pos_1][aa][prefix] += 1
+#     out_list = list()
     
-    for position, AAs in out_dict.items():
-        for AA, prefxes in AAs.items():
-            for prefix, count in prefxes.items():
-                out_list.append({"position": position, "AA": AA, "prefix": prefix, "frequency": count/prefix_counts[prefix]})
+#     for position, AAs in out_dict.items():
+#         for AA, prefxes in AAs.items():
+#             for prefix, count in prefxes.items():
+#                 out_list.append({"position": position, "AA": AA, "prefix": prefix, "frequency": count/prefix_counts[prefix]})
 
-    df = pd.DataFrame(out_list)
+#     df = pd.DataFrame(out_list)
 
-    return df.pivot(index=['position','AA'], columns='prefix')['frequency']
+#     return df.pivot(index=['position','AA'], columns='prefix')['frequency']
 
-def second_order_statistics(prefixes, names, seqs):
-    """
-        input: 
-            prefixes: a list of strings, such that each sequence name starts with one of the prefixes
-            names: list of sequence names
-            seqs: list of aligned sequences. Must all be of same length.
-        output: 
-            a data frame with index=['position_1', 'position_2', 'AA1', 'AA2'], columns='prefix'
-            values are frequencies
-    """
+# def second_order_statistics(prefixes, names, seqs):
+#     """
+#         input: 
+#             prefixes: a list of strings, such that each sequence name starts with one of the prefixes
+#             names: list of sequence names
+#             seqs: list of aligned sequences. Must all be of same length.
+#         output: 
+#             a data frame with index=['position_1', 'position_2', 'AA1', 'AA2'], columns='prefix'
+#             values are frequencies
+#     """
     
-    out_dict = dict() #{position: {AA: {prefix: [count] }}}
-    prefix_counts = {x:0 for x in prefixes}
+#     out_dict = dict() #{position: {AA: {prefix: [count] }}}
+#     prefix_counts = {x:0 for x in prefixes}
     
-    for i,name in enumerate(names):
-        prefix = None
-        for prfx in prefixes:
-            if name.startswith(prfx):
-                prefix = prfx
-                prefix_counts[prefix] += 1
-        if prefix is None:
-            raise(Exception(f"{name} does not have valid prefix"))
-        for pos_1, aa1 in enumerate(seqs[i]):
+#     for i,name in enumerate(names):
+#         prefix = None
+#         for prfx in prefixes:
+#             if name.startswith(prfx):
+#                 prefix = prfx
+#                 prefix_counts[prefix] += 1
+#         if prefix is None:
+#             raise(Exception(f"{name} does not have valid prefix"))
+#         for pos_1, aa1 in enumerate(seqs[i]):
             
-            if pos_1 not in out_dict:
-                out_dict[pos_1] = dict()
-            if aa1 not in out_dict[pos_1]:
-                out_dict[pos_1][aa1] = dict()
+#             if pos_1 not in out_dict:
+#                 out_dict[pos_1] = dict()
+#             if aa1 not in out_dict[pos_1]:
+#                 out_dict[pos_1][aa1] = dict()
             
-            for pos_2 in range(pos_1+1, len(seqs[i])):
-                aa2 = seqs[i][pos_2]
-                if pos_2 not in out_dict[pos_1][aa1]:
-                    out_dict[pos_1][aa1][pos_2] = dict()
-                if aa2 not in out_dict[pos_1][aa1][pos_2]:
-                    out_dict[pos_1][aa1][pos_2][aa2] = {prfx: 0 for prfx in prefixes}
-                out_dict[pos_1][aa1][pos_2][aa2][prefix] += 1
+#             for pos_2 in range(pos_1+1, len(seqs[i])):
+#                 aa2 = seqs[i][pos_2]
+#                 if pos_2 not in out_dict[pos_1][aa1]:
+#                     out_dict[pos_1][aa1][pos_2] = dict()
+#                 if aa2 not in out_dict[pos_1][aa1][pos_2]:
+#                     out_dict[pos_1][aa1][pos_2][aa2] = {prfx: 0 for prfx in prefixes}
+#                 out_dict[pos_1][aa1][pos_2][aa2][prefix] += 1
                 
             
-    out_list = list()
+#     out_list = list()
     
-    for position1, AA1s in out_dict.items():
-        for AA1, position2s in AA1s.items():
-            for position2, AA2s in position2s.items():
-                for AA2, prefxes in AA2s.items():
-                    for prefix, count in prefxes.items():
-                        out_list.append({"position_1": position1, "position_2":position2, "AA1": AA1, "AA2": AA2, "prefix": prefix, "frequency": count/prefix_counts[prefix]})
+#     for position1, AA1s in out_dict.items():
+#         for AA1, position2s in AA1s.items():
+#             for position2, AA2s in position2s.items():
+#                 for AA2, prefxes in AA2s.items():
+#                     for prefix, count in prefxes.items():
+#                         out_list.append({"position_1": position1, "position_2":position2, "AA1": AA1, "AA2": AA2, "prefix": prefix, "frequency": count/prefix_counts[prefix]})
 
-    df = pd.DataFrame(out_list)
+#     df = pd.DataFrame(out_list)
 
-    return df.pivot(index=['position_1', 'position_2', 'AA1','AA2'], columns='prefix')['frequency']
-
-
+#     return df.pivot(index=['position_1', 'position_2', 'AA1','AA2'], columns='prefix')['frequency']
 
 
-def third_order_statistics(prefixes, names, seqs):
-    """
-        input: 
-            prefixes: a list of strings, such that each sequence name starts with one of the prefixes
-            names: list of sequence names
-            seqs: list of aligned sequences. Must all be of same length.
-        output: 
-            a data frame with index=['position_1', 'position_2', 'position_3', 'AA1', 'AA2', 'AA3'], columns='prefix'
-            values are frequencies
-    """
+
+
+# def third_order_statistics(prefixes, names, seqs):
+#     """
+#         input: 
+#             prefixes: a list of strings, such that each sequence name starts with one of the prefixes
+#             names: list of sequence names
+#             seqs: list of aligned sequences. Must all be of same length.
+#         output: 
+#             a data frame with index=['position_1', 'position_2', 'position_3', 'AA1', 'AA2', 'AA3'], columns='prefix'
+#             values are frequencies
+#     """
     
-    out_dict = dict() #{position: {AA: {prefix: [count] }}}
-    prefix_counts = {x:0 for x in prefixes}
+#     out_dict = dict() #{position: {AA: {prefix: [count] }}}
+#     prefix_counts = {x:0 for x in prefixes}
     
-    for i,name in enumerate(names):
-        prefix = None
-        for prfx in prefixes:
-            if name.startswith(prfx):
-                prefix = prfx
-                prefix_counts[prefix] += 1
-        if prefix is None:
-            raise(Exception(f"{name} does not have valid prefix"))
-        for pos_1, aa1 in enumerate(seqs[i]):
+#     for i,name in enumerate(names):
+#         prefix = None
+#         for prfx in prefixes:
+#             if name.startswith(prfx):
+#                 prefix = prfx
+#                 prefix_counts[prefix] += 1
+#         if prefix is None:
+#             raise(Exception(f"{name} does not have valid prefix"))
+#         for pos_1, aa1 in enumerate(seqs[i]):
             
-            if pos_1 not in out_dict:
-                out_dict[pos_1] = dict()
-            if aa1 not in out_dict[pos_1]:
-                out_dict[pos_1][aa1] = dict()
+#             if pos_1 not in out_dict:
+#                 out_dict[pos_1] = dict()
+#             if aa1 not in out_dict[pos_1]:
+#                 out_dict[pos_1][aa1] = dict()
             
-            for pos_2 in range(pos_1+1, len(seqs[i])):
-                aa2 = seqs[i][pos_2]
-                if pos_2 not in out_dict[pos_1][aa1]:
-                    out_dict[pos_1][aa1][pos_2] = dict()
-                if aa2 not in out_dict[pos_1][aa1][pos_2]:
-                    out_dict[pos_1][aa1][pos_2][aa2] = dict()
+#             for pos_2 in range(pos_1+1, len(seqs[i])):
+#                 aa2 = seqs[i][pos_2]
+#                 if pos_2 not in out_dict[pos_1][aa1]:
+#                     out_dict[pos_1][aa1][pos_2] = dict()
+#                 if aa2 not in out_dict[pos_1][aa1][pos_2]:
+#                     out_dict[pos_1][aa1][pos_2][aa2] = dict()
                 
-                for pos_3 in range(pos_2+1,len(seqs[i])):
-                    aa3 = seqs[i][pos_3]
-                    if pos_3 not in out_dict[pos_1][aa1][pos_2][aa2]:
-                        out_dict[pos_1][aa1][pos_2][aa2][pos_3] = dict()
-                    if aa3 not in out_dict[pos_1][aa1][pos_2][aa2][pos_3]:
-                        out_dict[pos_1][aa1][pos_2][aa2][pos_3][aa3] = {prfx: 0 for prfx in prefixes}
-                    out_dict[pos_1][aa1][pos_2][aa2][pos_3][aa3][prefix] += 1
+#                 for pos_3 in range(pos_2+1,len(seqs[i])):
+#                     aa3 = seqs[i][pos_3]
+#                     if pos_3 not in out_dict[pos_1][aa1][pos_2][aa2]:
+#                         out_dict[pos_1][aa1][pos_2][aa2][pos_3] = dict()
+#                     if aa3 not in out_dict[pos_1][aa1][pos_2][aa2][pos_3]:
+#                         out_dict[pos_1][aa1][pos_2][aa2][pos_3][aa3] = {prfx: 0 for prfx in prefixes}
+#                     out_dict[pos_1][aa1][pos_2][aa2][pos_3][aa3][prefix] += 1
                 
             
-    out_list = list()
-    #print(out_dict)
-    for position1, AA1s in out_dict.items():
-        for AA1, position2s in AA1s.items():
-            for position2, AA2s in position2s.items():
-                for AA2, position3s in AA2s.items():
-                    for position3, AA3s in position3s.items():
-                        for AA3, prefxes in AA3s.items():
-                            for prefix, count in prefxes.items():
-                                out_list.append({"position_1": position1, "position_2": position2, "position_3": position3, "AA1": AA1, "AA2": AA2, "AA3": AA3, "prefix": prefix, "frequency": count/prefix_counts[prefix]})
+#     out_list = list()
+#     #print(out_dict)
+#     for position1, AA1s in out_dict.items():
+#         for AA1, position2s in AA1s.items():
+#             for position2, AA2s in position2s.items():
+#                 for AA2, position3s in AA2s.items():
+#                     for position3, AA3s in position3s.items():
+#                         for AA3, prefxes in AA3s.items():
+#                             for prefix, count in prefxes.items():
+#                                 out_list.append({"position_1": position1, "position_2": position2, "position_3": position3, "AA1": AA1, "AA2": AA2, "AA3": AA3, "prefix": prefix, "frequency": count/prefix_counts[prefix]})
 
-    df = pd.DataFrame(out_list)
+#     df = pd.DataFrame(out_list)
 
-    return df.pivot(index=['position_1', 'position_2', 'position_3', 'AA1', 'AA2', 'AA3'], columns='prefix')['frequency']
+#     return df.pivot(index=['position_1', 'position_2', 'position_3', 'AA1', 'AA2', 'AA3'], columns='prefix')['frequency']
 
 def generate_alignment(sequences, tmp_dir="/tmp"):
     """
