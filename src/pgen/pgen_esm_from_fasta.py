@@ -22,7 +22,7 @@ def main(input_h, output_p, args):
                 seeds = parse_fasta(line[2], clean=None)
                 sequences = list()
                 for out_seq_i in trange(args.num_output_sequences):
-                    seed = random.choice(seed_seq)
+                    seed = random.choice(seeds)
                     seed, gap_mask = unalign(seed)
                     generated_sequence = sampler.generate(n_samples=1, seed_seq=seed, batch_size=args.batch_size, **line_args)[0]
                     if args.keep_gap_positions:
