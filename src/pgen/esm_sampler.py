@@ -145,18 +145,18 @@ class ESM_sampler():
             sequences = []
             n_batches = math.ceil(n_samples / batch_size)
             
+            if max_len is None:
+                max_len = sequence_length
+            
             if num_positions_percent is not None:
-                num_positions = int(sequence_length*(num_positions_percent / 100))
+                num_positions = int(max_len*(num_positions_percent / 100))
             if num_positions < 0:
                 num_positions = 0
 
             if leader_length_percent is not None:
-                leader_length = int(sequence_length*(leader_length_percent / 100))
+                leader_length = int(max_len*(leader_length_percent / 100))
             if leader_length < 0:
                 leader_length = 0
-
-            if max_len is None:
-                max_len = sequence_length
 
             for batch_n in trange(n_batches, disable=(not show_progress_bar)):
 

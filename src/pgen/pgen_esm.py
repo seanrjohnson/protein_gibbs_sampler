@@ -13,12 +13,12 @@ def main(input_h, output_p, args):
     with open(output_p / "specification.tsv","w") as output_h:
         for line in input_h:
             line = line.strip().split("\t")
-            if len(line) == 3:
+            if len(line) == 2:
                 print("\t".join(line))
                 print("\t".join(line), file=output_h)
                 name = line[0]
                 line_args = eval(line[1])
-                sequences = sampler.generate(args.num_output_sequences, seed_seq=line[2].upper(), batch_size=args.batch_size, **line_args)
+                sequences = sampler.generate(args.num_output_sequences, batch_size=args.batch_size, **line_args)
                 write_sequential_fasta( output_p / (name + ".fasta"), sequences )
 
 
