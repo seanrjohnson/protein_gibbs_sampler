@@ -85,10 +85,17 @@ class ESM_sampler():
         """ Get initial sequence by padding seed_seq with masks """
         #In the paper they talk about padding with random sequence. I'm not sure that's a good idea. S.R.J.
         # Also, that code was commented out in the BertGen repo. So they probably didn't think was a good idea either.
-        
-        remaining_len = max_len - len(seed_seq)
-        seed_seq = [x for x in seed_seq] #if input is a string, convert it to an array
-        batch = [(str(i), seed_seq + ["<mask>"] * remaining_len) for i in range(batch_size)]
+
+        if isinstance(seed_seq, list):
+            batch = random.choices(seed_seq, k=batch_size)
+            for i, seed in enumerate(batch):
+                remaining_len = max_len - len(seed)
+                batch[i] = (str(i), list(seed) + ["<mask>"] * remaining_len)
+
+        elif isinstance(seed_seq, str):
+            remaining_len = max_len - len(seed_seq)
+            seed_seq = [x for x in seed_seq] #if input is a string, convert it to an array
+            batch = [(str(i), seed_seq + ["<mask>"] * remaining_len) for i in range(batch_size)]
         
         #if rand_init:
         #    for ii in range(max_len):
@@ -97,7 +104,7 @@ class ESM_sampler():
         return tokens
 
     def generate(self, n_samples, seed_seq, batch_size=1, in_order=False, max_len=None, leader_length=0, leader_length_percent=None, top_k=0, temperature=None, num_iters=10,  burnin=float('inf'),
-                            mask=True, num_positions=0, num_positions_percent=None, indexes=None, rollover_from_start=False):
+                            mask=True, num_positions=0, num_positions_percent=None, indexes=None, rollover_from_start=False, show_progress_bar=True):
         """ generate sequences
 
             n_samples: number of sequences to output
@@ -115,6 +122,8 @@ class ESM_sampler():
             num_positions: generate new AAs for this many positions each iteration. If 0, then generate for all target positions each round.
             num_positions_percent: If not None, then set num_positions = int(len(seed_seq)*(num_positions_percent / 100))
             indexes: positions of the input sequence to modify. 1-indexed, if None then all positions after the leader.
+
+            show_progress_bar: if True then show a progress bar corresponding to the number of batches that need to be processed. Default: True.
 
             #### Examples #####
             seed = "MTSENPLLALREKISALDEKLLALLAERRELAVEVGKAKLLSHRPVRDIDRERDLLERLITLGKAHHLDAHYITRLFQLIIEDSVLTQQALLQQH"
@@ -141,26 +150,31 @@ class ESM_sampler():
         #TODO: repetition penalty, somehow?
         #TODO: add dilated sequential sampling, like sampling every third or fifth amino acid and then doing the whole protein in like 3 or 5 steps, or something like that.
         with torch.no_grad(): # I'm not sure if this no_grad is necessary or not, but it couldn't hurt!
-            sequence_length = len(seed_seq)
+            if isinstance(seed_seq, str):
+                sequence_length = len(seed_seq)
+            elif isinstance(seed_seq, list):
+                sequence_length = max(len(seed) for seed in seed_seq)
+            else:
+                raise ValueError("Unknown seed sequence format, expecting str or list")
 
             cuda = self.cuda
             sequences = []
             n_batches = math.ceil(n_samples / batch_size)
             
+            if max_len is None:
+                max_len = sequence_length
+            
             if num_positions_percent is not None:
-                num_positions = int(sequence_length*(num_positions_percent / 100))
+                num_positions = int(max_len*(num_positions_percent / 100))
             if num_positions < 0:
                 num_positions = 0
 
             if leader_length_percent is not None:
-                leader_length = int(sequence_length*(leader_length_percent / 100))
+                leader_length = int(max_len*(leader_length_percent / 100))
             if leader_length < 0:
                 leader_length = 0
 
-            if max_len is None:
-                max_len = sequence_length
-
-            for batch_n in trange(n_batches):
+            for batch_n in trange(n_batches, disable=(not show_progress_bar)):
 
                 batch = self.get_init_seq(seed_seq, max_len, batch_size)
                 batch = batch.cuda() if cuda else batch

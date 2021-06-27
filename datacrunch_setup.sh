@@ -18,7 +18,9 @@ sudo apt-get update
 apt-get install -y nvidia-container-runtime
 sudo systemctl restart docker
 
-git clone --branch esm1b_followup https://github.com/seanrjohnson/protein_gibbs_sampler.git
+cd /root
+HOME=/root
+git clone --branch esm1b_followup_random_batch https://github.com/seanrjohnson/protein_gibbs_sampler.git
 
 cd protein_gibbs_sampler
 make run

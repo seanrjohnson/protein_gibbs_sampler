@@ -1,6 +1,7 @@
 # Generating novel protein sequences using Gibbs sampling of masked language models
 
 This repository represents the code supporting the work done in [Paper Name](Paper.pdf)
+The code has been continuously updated. For the version of the code that was used in the preprint, see: [here](https://github.com/seanrjohnson/protein_gibbs_sampler/commit/279d22d965236fe278362542a882105715c409c4)
 
 ## Running the Code
 
@@ -40,6 +41,20 @@ make remove
 ## References
 
 This repository represents work building on related resources as cited below.
+
+### bert-gen
+
+[Github](https://github.com/nyu-dl/bert-gen)
+[Paper](https://arxiv.org/abs/1902.04094)
+
+```bibtex
+@article{wang2019bert,
+  title={BERT has a Mouth, and It Must Speak: BERT as a Markov Random Field Language Model},
+  author={Wang, Alex and Cho, Kyunghyun},
+  journal={arXiv preprint arXiv:1902.04094},
+  year={2019}
+}
+```
 
 ### ESM
 

@@ -42,6 +42,30 @@ def test_get_init_seq_empty(esm_sampler_fixture):
     assert (out.tolist() == expected)
 
 
+def test_get_init_seq_string_seed(esm_sampler_fixture):
+    sampler = esm_sampler_fixture
+    out = sampler.get_init_seq("AA", 5, 1)
+    expected = [[32, 5, 5, 33, 33, 33]]
+    assert (out.tolist() == expected)
+
+
+def test_get_init_seq_array_of_seeds(esm_sampler_fixture):
+    sampler = esm_sampler_fixture
+    out = sampler.get_init_seq(["AA"], 5, 1)
+    expected = [[32, 5, 5, 33, 33, 33]]
+    assert (out.tolist() == expected)
+
+
+def test_get_init_seq_array_of_seeds_builds_batch_randomly(esm_sampler_fixture):
+    sampler = esm_sampler_fixture
+    out = sampler.get_init_seq(["AA", "A"], 5, 3)
+    option1 = [32, 5, 5, 33, 33, 33]
+    option2 = [32, 5, 33, 33, 33, 33]
+
+    assert len(out) == 3
+    for item in out.tolist():
+        assert item == option1 or item == option2
+
 def test_generate_batch_equals_seqs(esm_sampler_fixture):
     sampler = esm_sampler_fixture
     out = sampler.generate(4, "", batch_size=4, max_len=10)

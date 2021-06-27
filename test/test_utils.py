@@ -43,9 +43,6 @@ def test_subsetter_2():
     assert set(test_input['seq_list']) == set(output)
     assert test_input['seq_list'] != output
 
-
-
-
 def test_parse_fasta_1(a2m_file):
     names, sequences = utils.parse_fasta(a2m_file, return_names = True)
     assert names == ["seq_1","seq_2","seq_3"]
@@ -66,3 +63,26 @@ def test_parse_fasta_3(a2m_file):
                          "------------------------TLEEWQDKWVNGKTAFHQEQGHQLLKKHLDT--KGKSGLRVFFPLCGKAVEMKWFADRGHSVVGVEISELGIQEFFTEQNLSYS---",
                          'MDGTRTSLDIEEYSDTEVQKNQVLTLEEWQDKWVNGKTAFHQEQGHQLLKKHLDTFLKGKSGLRVFFPLCGKAVEMKWFADRGHSVVGVEISELGIQEFFTEQNLSYSEEP'
                         ]
+
+def test_parse_fasta_3(a2m_file):
+    sequences = utils.parse_fasta(a2m_file, return_names = False, clean="unalign")
+    assert sequences == ['MDGTRTSLDIEEYSDTEVQKNQVLTLEEWQDKWVNGKTAFHQEQGHQLLKKHLDTFLKGKSGLRVFFPLCGKAVEMKWFADRGHSVVGVEISELGIQEFFTEQNLSYSEEP', 
+                         "TLEEWQDKWVNGKTAFHQEQGHQLLKKHLDTKGKSGLRVFFPLCGKAVEMKWFADRGHSVVGVEISELGIQEFFTEQNLSYS",
+                         'MDGTRTSLDIEEYSDTEVQKNQVLTLEEWQDKWVNGKTAFHQEQGHQLLKKHLDTFLKGKSGLRVFFPLCGKAVEMKWFADRGHSVVGVEISELGIQEFFTEQNLSYSEEP'
+                        ]
+
+
+@pytest.mark.parametrize("test_input,expected", [
+    (".*-ABCDE.*-", ("ABCDE",['.','*','-',None,None,None,None,None,'.','*','-'])),
+    ("AB.*-AB", ("ABAB",[None,None,'.','*','-',None,None])),
+    ])
+def test_unalign_1(test_input,expected):
+    assert utils.unalign(test_input) == expected
+
+@pytest.mark.parametrize("test_input,expected", [
+    (("ABCDE",['.','*','-',None,None,None,None,None,'.','*','-']),".*-ABCDE.*-"),
+    (("ABAB",[None,None,'.','*','-',None,None]),"AB.*-AB"),
+    (("MTGQ", [None,'-','-',None,None,".","-",None,"*"]),"M--TG.-Q*"),
+    ])
+def test_add_gaps_back(test_input,expected):
+    assert utils.add_gaps_back(*test_input) == expected

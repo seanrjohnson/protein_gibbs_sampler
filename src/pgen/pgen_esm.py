@@ -7,20 +7,20 @@ from pathlib import Path
 model_map = {"esm1b":models.ESM1b, "esm6":models.ESM6, "esm12":models.ESM12, "esm34":models.ESM34}
 
 def main(input_h, output_p, args):
-    device = args.device
+
     sampler = ESM_sampler(model_map[args.model](),device=args.device)
     with open(output_p / "specification.tsv","w") as output_h:
         for line in input_h:
             line = line.strip().split("\t")
-            if len(line) == 3:
+            if len(line) == 2:
                 print("\t".join(line))
                 print("\t".join(line), file=output_h)
                 name = line[0]
                 line_args = eval(line[1])
-                sequences = sampler.generate(args.num_output_sequences, seed_seq=line[2].upper(), batch_size=args.batch_size, **line_args)
-                write_sequential_fasta( output_p / (name + ".fasta"), sequences)
+                sequences = sampler.generate(args.num_output_sequences, batch_size=args.batch_size, **line_args)
+                write_sequential_fasta( output_p / (name + ".fasta"), sequences )
             else:
-                print(f"Expected 3 values in specification file (name, line_args, seed), got {len(line)}")
+                print(f"Expected 2 values in specification file (name, line_args), got {len(line)}")
                 print("\t".join(line))
 
 if __name__ == "__main__":
