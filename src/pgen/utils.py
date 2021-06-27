@@ -204,14 +204,14 @@ def add_gaps_back(sequence: str, gap_mask: list) -> str:
     return "".join(out)
 
 
-def parse_fasta(filename, return_names=False, clean=None): 
+def parse_fasta(filename, return_names=False, clean=None, full_name=False): 
     """
         adapted from: https://bitbucket.org/seanrjohnson/srj_chembiolib/src/master/parsers.py
         
 
         input:
             filename: the name of a fasta file or a filehandle to a fasta file.
-            return_names: if True then return two lists: (names, sequences), otherwise just return list of 
+            return_names: if True then return two lists: (names, sequences), otherwise just return list of sequences
             clean: {None, 'upper', 'delete', 'unalign'}
                     if 'delete' then delete all lowercase "." and "*" characters. This is usually if the input is an a2m file and you don't want to preserve the original length.
                     if 'upper' then delete "*" characters, convert lowercase to upper case, and "." to "-"
@@ -232,8 +232,11 @@ def parse_fasta(filename, return_names=False, clean=None):
         if len(line) == 0:
             continue
         if line[0] == ">":
-            parts = line.split(None, 1)
-            name = parts[0][1:]
+            if full_name:
+                name = line[1:]
+            else:
+                parts = line.split(None, 1)
+                name = parts[0][1:]
             out_names.append(name)
             if (prev_name is not None):
                 out_seqs.append(prev_seq)
