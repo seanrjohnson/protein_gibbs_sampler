@@ -41,6 +41,20 @@ make remove
 
 This repository represents work building on related resources as cited below.
 
+### bert-gen
+
+[Github](https://github.com/nyu-dl/bert-gen)
+[Paper](https://arxiv.org/abs/1902.04094)
+
+```bibtex
+@article{wang2019bert,
+  title={BERT has a Mouth, and It Must Speak: BERT as a Markov Random Field Language Model},
+  author={Wang, Alex and Cho, Kyunghyun},
+  journal={arXiv preprint arXiv:1902.04094},
+  year={2019}
+}
+```
+
 ### ESM
 
 [Github](https://github.com/facebookresearch/esm)
