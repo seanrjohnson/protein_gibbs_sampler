@@ -2,6 +2,8 @@ import pytest
 from pgen import models, esm_msa_sampler
 
 ####### Fixtures #######
+from pgen.esm_msa_sampler import ESM_MSA_ALLOWED_AMINO_ACIDS
+
 
 @pytest.fixture(scope="session")
 def esm_msa():
@@ -150,6 +152,7 @@ def test_calculate_indexes_no_rollover(msa_sampler):
     assert out_indexes == [2, 3, 4, 5]
     assert last_i == 0
 
+
 def test_calculate_indexes_with_rollover(msa_sampler):
     indexes = None
     leader_length = 1
@@ -161,6 +164,7 @@ def test_calculate_indexes_with_rollover(msa_sampler):
     assert out_indexes == [1, 2, 3, 4, 5]
     assert last_i == -1
 
+
 def test_calculate_indexes_when_indexes_supplied(msa_sampler):
     indexes = [2, 3, 4, 5]
     leader_length = 1
@@ -171,3 +175,36 @@ def test_calculate_indexes_when_indexes_supplied(msa_sampler):
 
     assert out_indexes == [2, 3, 4, 5]
     assert last_i == -1
+
+
+def map_aa_idx_to_tok_set(msa_sampler):
+    return set(msa_sampler.model.alphabet.get_tok(idx) for idx in msa_sampler.valid_aa_idx)
+
+
+def test_allowable_amino_acid_locations_only_contain_standard_aa(msa_sampler):
+    standard_toks = set(msa_sampler.model.alphabet.standard_toks)
+    actual_allowed = map_aa_idx_to_tok_set(msa_sampler)
+
+    assert actual_allowed.issubset(standard_toks)
+    assert actual_allowed == set(ESM_MSA_ALLOWED_AMINO_ACIDS)
+
+
+def test_allowable_amino_acid_locations_do_not_contain_amino_acids_we_cant_create(msa_sampler):
+    actual_allowed = map_aa_idx_to_tok_set(msa_sampler)
+    non_single_standard = set("XBUXZO.")
+
+    assert actual_allowed.isdisjoint(non_single_standard)
+
+
+def test_generate_batch_only_includes_allowed_aa(msa_sampler):
+    out = msa_sampler.generate(10, ["AAA", "AAB"], num_iters=1, max_len=25)
+
+    allowed = set(ESM_MSA_ALLOWED_AMINO_ACIDS)
+    for sequence in out:
+        assert len({s for s in sequence}.difference(allowed)) == 0
+
+
+# def test_generate_batch_does_not_leave_unmasked_characters(msa_sampler):
+#     out = msa_sampler.generate(1, ["AAA", "AAB"], num_iters=1, max_len=5, num_positions=1)
+#
+#     assert "<mask>" not in out[0]

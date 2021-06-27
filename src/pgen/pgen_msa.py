@@ -30,6 +30,9 @@ def main(input_h, output_p, args):
 
                 sequences = gibbs_sampler.generate(args.num_output_sequences, seed_msa=input_msa, batch_size=args.batch_size, **line_args)
                 write_sequential_fasta( output_p / (name + ".fasta"), sequences )
+            else:
+                print(f"Expected 3 values in specification file (name, line_args, input_msa), got {len(line)}")
+                print("\t".join(line))
 
 
 if __name__ == "__main__":
