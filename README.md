@@ -1,6 +1,7 @@
 # Generating novel protein sequences using Gibbs sampling of masked language models
 
 This repository represents the code supporting the work done in [Paper Name](Paper.pdf)
+The code has been continuously updated. For the version of the code that was used in the preprint, see: [here](https://github.com/seanrjohnson/protein_gibbs_sampler/commit/279d22d965236fe278362542a882105715c409c4)
 
 ## Running the Code
 
