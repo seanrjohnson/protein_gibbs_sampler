@@ -3,14 +3,17 @@ import math
 import random
 from tqdm import trange
 
-def generate_step(out, gen_idx, temperature=None, top_k=0, sample=False):
+def generate_step(out, gen_idx, temperature=None, top_k=0, sample=False, valid_idx=None):
     """ Generate a word from from out[gen_idx]
     
     args:
         - out (torch.Tensor): tensor of logits of size seq_len x vocab_size
         - gen_idx (int): location for which to generate for
         - top_k (int): if >0, only sample from the top k most probable words
-        - sample (Bool): if True, sample from full distribution. Overridden by top_k 
+        - sample (Bool): if True, sample from full distribution. Overridden by top_k
+        - valid_idx (list): list of valid indexes to return. If none, all indexes are valid
+    returns:
+        tensor containing the selected amino acid index
     """
     #TODO: repetition penalty.
     #TODO: this could be vectorized a lot better, but I think this isn't the rate limiting step (inferrence is), so it probably doesn't matter.
@@ -19,17 +22,28 @@ def generate_step(out, gen_idx, temperature=None, top_k=0, sample=False):
     if temperature is not None:
         logits = logits / temperature
 
+    if valid_idx is None:
+        valid_idx = list(range(len(logits)))
 
-    if sample or (top_k <= 0) or (top_k > len(logits)): # If sample is true, that means we are forcing sampling from the whole distribution. if top_k is 0 that means we want to sample from the whole distribution.
-        top_k = len(logits)
-    else: # top_k is in bounds and we aren't forcing full sampling, so just keep it as it is.
+    sub_logits = logits[valid_idx]
+
+    if sample or (top_k <= 0) or (top_k > len(sub_logits)):
+        # If sample is true, that means we are forcing sampling from the whole distribution.
+        # If top_k is 0 that means we want to sample from the whole distribution.
+        top_k = len(sub_logits)
+    else:
+        # top_k is in bounds and we aren't forcing full sampling, so just keep it as it is.
         top_k = top_k
 
-    kth_vals, kth_idx = logits.topk(top_k)  # kth_vals is the logits, kth_idx is the indexes at which the logits are found.
+    kth_vals, kth_idx = sub_logits.topk(top_k)  # kth_vals is the logits, kth_idx is the indexes at which the logits are found.
     dist = torch.distributions.categorical.Categorical(logits=kth_vals)
+
     idx = kth_idx[dist.sample()]
 
-    return idx
+    return torch.tensor(valid_idx[idx])
+
+
+ESM_ALLOWED_AMINO_ACIDS = "ACDEFGHIKLMNPQRSTVWY"
 
 class ESM_sampler():
     """adapted from bert-gen bert-babble.ipynb"""
@@ -57,6 +71,8 @@ class ESM_sampler():
             device = "cpu"
         device = torch.device(device)
         self.model.model.to(device)
+
+        self.valid_aa_idx = sorted([self.model.alphabet.get_idx(tok) for tok in ESM_ALLOWED_AMINO_ACIDS])
 
     def untokenize_batch(self, batch): #TODO: maybe should be moved to the model class, or a model superclass?
         #convert tokens to AAs, but skip the first one, because that one is <cls>
@@ -159,7 +175,7 @@ class ESM_sampler():
                         if in_order: #cycle through the indexes
                             next_i = last_i
                             last_i, target_indexes = self.get_target_index_in_order(batch_size, indexes, next_i,
-                                                                                  num_positions)
+                                                                                    num_positions)
                         else:
                             target_indexes = self.get_random_target_index(batch_size, indexes, num_positions)
                     else:
@@ -172,7 +188,12 @@ class ESM_sampler():
                     
                     for batch_index in range(batch_size):
                         for kk in target_indexes[batch_index]:
-                            idx = generate_step(out[batch_index], gen_idx=kk, top_k=top_k, temperature=temperature, sample=(ii < burnin))
+                            idx = generate_step(out[batch_index],
+                                                gen_idx=kk,
+                                                top_k=top_k,
+                                                temperature=temperature,
+                                                sample=(ii < burnin),
+                                                valid_idx=self.valid_aa_idx)
                             batch[batch_index][kk] = idx
                 if batch_n == (n_batches - 1): #last batch, so maybe don't take all of them, just take enough to get to n_samples
                     sequences += self.untokenize_batch(batch)[0:n_samples - len(sequences)]

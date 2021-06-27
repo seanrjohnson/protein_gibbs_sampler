@@ -3,7 +3,6 @@ from pgen.esm_sampler import ESM_sampler
 from pgen import models
 from pgen.utils import write_sequential_fasta
 from pathlib import Path
-import shutil
 
 model_map = {"esm1b":models.ESM1b, "esm6":models.ESM6, "esm12":models.ESM12, "esm34":models.ESM34}
 
@@ -19,8 +18,10 @@ def main(input_h, output_p, args):
                 name = line[0]
                 line_args = eval(line[1])
                 sequences = sampler.generate(args.num_output_sequences, seed_seq=line[2].upper(), batch_size=args.batch_size, **line_args)
-                write_sequential_fasta( output_p / (name + ".fasta"), sequences )
-
+                write_sequential_fasta( output_p / (name + ".fasta"), sequences)
+            else:
+                print(f"Expected 3 values in specification file (name, line_args, seed), got {len(line)}")
+                print("\t".join(line))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

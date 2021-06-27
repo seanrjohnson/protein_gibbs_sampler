@@ -4,6 +4,7 @@ import random
 from tqdm import trange
 from pgen.esm_sampler import generate_step
 
+ESM_MSA_ALLOWED_AMINO_ACIDS = "-ACDEFGHIKLMNPQRSTVWY"
 
 class ESM_MSA_sampler():
     """adapted from bert-gen bert-babble.ipynb"""
@@ -30,6 +31,8 @@ class ESM_MSA_sampler():
             device = "cpu"
         device = torch.device(device)
         self.model.model.to(device)
+
+        self.valid_aa_idx = sorted([self.model.alphabet.get_idx(tok) for tok in ESM_MSA_ALLOWED_AMINO_ACIDS])
 
     def untokenize_batch(self, batch): #TODO: maybe should be moved to the model class, or a model superclass?
         #convert tokens to AAs, but skip the first one, because that one is <cls>
@@ -141,7 +144,12 @@ class ESM_MSA_sampler():
                     for batch_index in range(batch_size):
                         for sequence_index in range(num_sequences):
                             for kk in target_indexes[batch_index][sequence_index]:
-                                idx = generate_step(out[batch_index][sequence_index], gen_idx=kk, top_k=top_k, temperature=temperature, sample=(ii < burnin))
+                                idx = generate_step(out[batch_index][sequence_index],
+                                                    gen_idx=kk,
+                                                    top_k=top_k,
+                                                    temperature=temperature,
+                                                    sample=(ii < burnin),
+                                                    valid_idx=self.valid_aa_idx)
                                 batch[batch_index][sequence_index][kk] = idx
                 if batch_n == (n_batches - 1): #last batch, so maybe don't take all of them, just take enough to get to n_samples
                     sequences += self.untokenize_batch(batch)[0:n_samples - len(sequences)]
