@@ -1,0 +1,1 @@
+pgen_esm.py -i esm_specification.tsv -o output --batch_size 1 --num_output_sequences 5 --device cpu --model esm6

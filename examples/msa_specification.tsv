@@ -1,0 +1,1 @@
+AMIE_PSEAE	{'num_iters': 20, 'burnin': 10, 'mask': True, 'in_order':False, 'num_positions_percent': 10}	msa_example_cm2.fasta
