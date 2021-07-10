@@ -74,16 +74,21 @@ class ESM_sampler():
 
         self.valid_aa_idx = sorted([self.model.alphabet.get_idx(tok) for tok in ESM_ALLOWED_AMINO_ACIDS])
 
-    def untokenize_batch(self, batch): #TODO: maybe should be moved to the model class, or a model superclass?
+    def untokenize_batch(self, batch, bos, eos): #TODO: maybe should be moved to the model class, or a model superclass?
         #convert tokens to AAs, but skip the first one, because that one is <cls>
-        out = [ "".join([self.model.alphabet.get_tok(seq[i]) for i in range(1,len(seq)) ]) for seq in batch]
-   
+        start_offset = 0
+        end_offset = 0
+        if bos:
+            start_offset = 1
+        if eos:
+            end_offset = -1
+        out = [ "".join([self.model.alphabet.get_tok(seq[i]) for i in range(0 + start_offset, len(seq) + end_offset) ]) for seq in batch]
         return out
         
 
     def get_init_seq(self, seed_seq, max_len, batch_size = 1):
         """ Get initial sequence by padding seed_seq with masks """
-        #In the paper they talk about padding with random sequence. I'm not sure that's a good idea. S.R.J.
+        # In the BertGen paper they talk about padding with random sequence. I'm not sure that's a good idea. S.R.J.
         # Also, that code was commented out in the BertGen repo. So they probably didn't think was a good idea either.
 
         if isinstance(seed_seq, list):
@@ -97,9 +102,6 @@ class ESM_sampler():
             seed_seq = [x for x in seed_seq] #if input is a string, convert it to an array
             batch = [(str(i), seed_seq + ["<mask>"] * remaining_len) for i in range(batch_size)]
         
-        #if rand_init:
-        #    for ii in range(max_len):
-        #        init_idx[seed_len+ii] = np.random.randint(0, len(tokenizer.vocab))
         labels, strs, tokens = self.model.batch_converter(batch)
         return tokens
 
@@ -210,9 +212,9 @@ class ESM_sampler():
                                                 valid_idx=self.valid_aa_idx)
                             batch[batch_index][kk] = idx
                 if batch_n == (n_batches - 1): #last batch, so maybe don't take all of them, just take enough to get to n_samples
-                    sequences += self.untokenize_batch(batch)[0:n_samples - len(sequences)]
+                    sequences += self.untokenize_batch(batch, self.model.alphabet.prepend_bos, self.model.alphabet.append_eos)[0:n_samples - len(sequences)]
                 else:
-                    sequences += self.untokenize_batch(batch)
+                    sequences += self.untokenize_batch(batch, self.model.alphabet.prepend_bos, self.model.alphabet.append_eos)
             return sequences
 
     def get_random_target_index(self, batch_size, indexes, num_positions):

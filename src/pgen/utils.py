@@ -189,7 +189,7 @@ def add_gaps_back(sequence: str, gap_mask: list) -> str:
     """
         input:
             sequence: the cleaned sequence
-            gap_mask: a list containing chars or None. The idea is that to get a sequence with gaps in the same places
+            gap_mask: a list containing chars or None. The idea is that to get a sequence with gaps in the same places, you will pull a character from the sequence for every "None" in the mask, and otherwise pull the mask character.
         output:
             a string of size len(gap_mask) where None positions have been replaced, in order, by characters from sequence.
 
