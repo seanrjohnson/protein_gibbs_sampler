@@ -1,7 +1,7 @@
 # Generating novel protein sequences using Gibbs sampling of masked language models
 
 This repository represents the code supporting the work done in [Generating novel protein sequences using Gibbs sampling of masked language models
-](https://www.biorxiv.org/content/10.1101/2021.01.26.428322v1.full)
+](https://www.biorxiv.org/content/10.1101/2021.01.26.428322v1.full).
 Since then, the code has been continuously updated. For the version of the code that was used in that preprint, see: [here](https://github.com/seanrjohnson/protein_gibbs_sampler/tree/v0.1.0)
 
 ## Install

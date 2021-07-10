@@ -6,7 +6,7 @@ from setuptools import setup, find_packages
 requirements = ['torch~=1.8.0', 'fair-esm~=0.3.1', 'pytest', 'tqdm']
 setup(
     name="pgen",
-    version="0.1.0",
+    version="0.2.0",
     description="Generating new protein sequence by gibbs sampling masked protein language models",
     author="Sean Johnson, Sarah Monaco, Kenneth Massie, Zaid Sayed",
     url="https://github.com/seanrjohnson/protein_gibbs_sampler",
