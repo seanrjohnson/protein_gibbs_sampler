@@ -2,7 +2,7 @@ from .core import SingletonMeta
 import os
 import logging
 from logging.handlers import RotatingFileHandler
-from typing import Dict
+from typing import Dict,Tuple
 import io
 # import pandas as pd
 from pathlib import Path
@@ -11,6 +11,7 @@ import subprocess
 import numpy as np
 import string
 import random
+import argparse
 
 
 logger = logging.getLogger(__name__)
@@ -55,6 +56,9 @@ def setup_logger(app_logger, output_dir="/workspace/logs", log_level=logging.INF
     logging_file_handler.setLevel(standard_log_level)
     logging_file_handler.setFormatter(log_formatter)
     app_logger.addHandler(logging_file_handler)
+
+class RawAndDefaultsFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawTextHelpFormatter):
+    pass
 
 def _open_if_is_name(filename_or_handle):
     out = filename_or_handle
@@ -159,7 +163,7 @@ def flatten_second_order(sos):
     out = np.zeros(sos.shape[2]*sos.shape[2])
     return out
 
-def unalign(sequence: str) -> (str,list):
+def unalign(sequence: str) -> Tuple[str,list]:
     """
         input:
             sequence: the starting sequence

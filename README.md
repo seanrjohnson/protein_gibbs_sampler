@@ -4,7 +4,38 @@ This repository represents the code supporting the work done in [Generating nove
 ](https://www.biorxiv.org/content/10.1101/2021.01.26.428322v1.full)
 Since then, the code has been continuously updated. For the version of the code that was used in that preprint, see: [here](https://github.com/seanrjohnson/protein_gibbs_sampler/tree/v0.1.0)
 
-## Running the Code
+## Install
+
+Clone the repo and move into the new directory
+
+```bash
+git clone https://github.com/seanrjohnson/protein_gibbs_sampler.git
+cd protein_gibbs_sampler
+```
+
+Then install either through conda or Docker
+
+### Conda/Pip
+
+Make a clean new Conda environment
+```bash
+conda create -n protein_gibbs_sampler python~=3.8
+conda activate protein_gibbs_sampler
+```
+
+Install this package and its prereqs with pip
+```bash
+pip install -e .
+```
+
+Test the install
+```bash
+pytest .
+```
+
+If you have CUDA installed, everything should pass, otherwise there will be one skipped test.
+
+### Docker
 
 Setup container environment:
 
@@ -33,11 +64,76 @@ make shell
 make remove
 ```
 
-## Table of Contents
+## Generating new protein sequences from the command line
 
-- [Training](./src/tasks/training/README.md)
-- [Evaluation](./src/tasks/evaluation/README.md)
-- [Generating](./src/tasks/generating/README.md)
+This package contains three command line programs to make it easy to generate new sequences.
+For good performance, it is recommended to use GPU, but they will still run on a CPU, just really slow for everything but small proteins.
+
+### pgen_esm.py
+
+Given a seed sequence, generates new sequences.
+
+#### pgen_esm_input.tsv
+```tsv
+test_seq	{'num_iters': 20, 'burnin': 10, 'mask': True, 'in_order':False, 'num_positions_percent': 10, 'seed_seq': "MEPAATGQEAEECAHSGRGEAWEEV"}
+test_seq2	{'num_iters': 20, 'burnin': 10, 'mask': True, 'in_order':False, 'num_positions_percent': 10, 'seed_seq': "MLEGADIVIIPAGV"}
+```
+
+```bash
+pgen_esm.py -o pgen_out -i pgen_esm_input.tsv --num_output_sequences 10
+```
+
+For detailed help:
+`pgen_esm.py -h`
+
+### pgen_msa.py
+
+Given a seed msa, uses esm-msa to generate new sequences.
+
+#### fasta_input1.fasta
+```fasta
+>s1
+MEPAATGQEAE--AHSGRGEAWEEV
+>s2
+MCP-ATGR-AEMCAHS--GEAWLLV
+>s3
+MEQ-AGGRLAEM-AHHC-GEAWLLV
+```
+
+#### fasta_input2.fasta
+```fasta
+>s1
+MLEGADIVIIP-GV
+>s2
+MLDG---VLLPGAV
+>s3
+M-EPADILVV--GV
+```
+
+#### pgen_msa_input.tsv
+```tsv
+test_seq	{'num_iters': 20, 'burnin': 10, 'mask': True, 'in_order':False, 'num_positions_percent': 10}	fasta_input1.fasta
+test_seq2	{'num_iters': 20, 'burnin': 10, 'mask': True, 'in_order':False, 'num_positions_percent': 10}	fasta_input2.fasta
+```
+
+```bash
+pgen_msa.py -o pgen_msa_out -i pgen_esm_msa_input.tsv --num_output_sequences 10 --batch_size
+```
+
+For detailed help:
+`pgen_msa.py -h`
+
+### pgen_esm_from_fasta.py
+
+Like `pgen_esm.py` except that the seed sequences come from fasta files, instead of being defined in the sampler arguments. The sequences in the fasta can either be aligned or unaligned. If they are aligned, then gaps will be removed before sampling, but setting `--keep_gap_positions` will add the gaps back in after sampling. If the fasta contains more than one sequence, then a random sequence will be selected for each round of sampling.
+
+```bash
+pgen_esm_from_fasta.py -o pgen_from_fasta_out -i pgen_msa_input.tsv --num_output_sequences 10 --keep_gap_positions
+```
+
+For detailed help:
+`pgen_esm_from_fasta.py -h`
+
 
 ## References
 
@@ -69,6 +165,21 @@ This repository represents work building on related resources as cited below.
   year={2019},
   doi={10.1101/622803},
   url={https://www.biorxiv.org/content/10.1101/622803v3},
+  journal={bioRxiv}
+}
+```
+
+### ESM-MSA
+
+[Paper](https://doi.org/10.1101/2021.02.12.430858)
+
+```bibtex
+@article{rao2021msa,
+  author = {Rao, Roshan and Liu, Jason and Verkuil, Robert and Meier, Joshua and Canny, John F. and Abbeel, Pieter and Sercu, Tom and Rives, Alexander},
+  title={MSA Transformer},
+  year={2021},
+  doi={10.1101/2021.02.12.430858},
+  url={https://www.biorxiv.org/content/10.1101/2021.02.12.430858v1},
   journal={bioRxiv}
 }
 ```

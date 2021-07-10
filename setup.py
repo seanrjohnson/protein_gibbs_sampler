@@ -3,14 +3,13 @@ from os.path import basename, splitext
 from setuptools import setup, find_packages
 # from distutils.core import setup, find_packages
 
-requirements = ['torch', 'fair-esm', 'pytest', 'tqdm']
-
+requirements = ['torch~=1.8.0', 'fair-esm~=0.3.1', 'pytest', 'tqdm']
 setup(
     name="pgen",
-    version="0.0.0",
-    description="Utilizing Pre-trained evolutionary scale models for proteins.",
-    author="GaTech DL",
-    url="",
+    version="0.1.0",
+    description="Generating new protein sequence by gibbs sampling masked protein language models",
+    author="Sean Johnson, Sarah Monaco, Kenneth Massie, Zaid Sayed",
+    url="https://github.com/seanrjohnson/protein_gibbs_sampler",
     license="MIT",
     packages=find_packages('src'),
     package_dir={'': 'src'},

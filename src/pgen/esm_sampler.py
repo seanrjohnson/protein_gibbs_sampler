@@ -110,12 +110,12 @@ class ESM_sampler():
             n_samples: number of sequences to output
             seed_seq: protein msa to start from
             batch_size: how many copies of the seed msa to run at one time.
-            in_order: if True then cycle through the positions in order, otherwise randomly select positions each iteration
+            in_order: if True then cycle through the positions in order, otherwise randomly select positions each iteration.
             max_len: maximum size of each generated sequence. If None, then use the length of the longest input msa.
             leader_length: don't overwrite this many amino acids at the beginning of the sequence.
             leader_length_percent: if not None, then will set leader_length = int(len(seed_seq)*(leader_length_percent / 100))
             top_k: if >0, only sample from the top k most probable AAs
-            temperature: 
+            temperature: higher numbers will mean there is a lower penalty for low-scoring amino acids.
             num_iters: how many times to run the forward loop for every batch. 
             burnin: during burn-in period, sample from full distribution; afterwards take argmax, set to 0 to never sample (always take best), or inf to always sample
 
