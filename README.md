@@ -117,7 +117,7 @@ test_seq2	{'num_iters': 20, 'burnin': 10, 'mask': True, 'in_order':False, 'num_p
 ```
 
 ```bash
-pgen_msa.py -o pgen_msa_out -i pgen_esm_msa_input.tsv --num_output_sequences 10 --batch_size
+pgen_msa.py -o pgen_msa_out -i pgen_esm_msa_input.tsv --num_output_sequences 10 
 ```
 
 For detailed help:
