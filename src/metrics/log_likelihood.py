@@ -15,16 +15,11 @@ def calculate_log_likelihood(model, seq, verbose=False):
         _, _, tokens = model.batch_converter(batch)
 
         logits = model.model(tokens)['logits']
-        prob = _convert_logits_to_prob(logits)
-        idx_prob = prob[0][idx][alphabet_idx]
-        log_likelihood = math.log(idx_prob)
-
-        if verbose:
-            print(idx, val, idx_prob, log_likelihood)
+        log_likelihood = _convert_logits_to_log_likelihood_prob(logits, idx, alphabet_idx, verbose)
 
         log_likelihood_sum += log_likelihood
 
-    return log_likelihood_sum / len(seq)
+    return float(log_likelihood_sum / len(seq))
 
 
 def _mask_index(idx, seq):
@@ -51,8 +46,15 @@ def _init_model(model, device="cpu"):
     model.model.to(device)
 
 
-def _convert_logits_to_prob(logits):
-    return torch.distributions.categorical.Categorical(logits=logits).probs
+def _convert_logits_to_log_likelihood_prob(logits, idx, alpha_idx, verbose):
+    cat = torch.distributions.categorical.Categorical(logits=logits[0][idx])
+
+    log_likelihood = cat.log_prob(torch.tensor(alpha_idx))
+
+    if verbose:
+        print(idx, cat.probs[alpha_idx], log_likelihood)
+
+    return log_likelihood
 
 
 print(calculate_log_likelihood(models.ESM12(), "MRHGDISSSNDTVGVAVVNYKMPRLHTAAEVLDNAR"))
