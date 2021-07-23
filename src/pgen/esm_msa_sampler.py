@@ -46,10 +46,16 @@ class ESM_MSA_sampler():
 
     def get_init_msa(self, seed_msa, max_len, batch_size = 1):
         """ Get initial msa by padding seed_seq with masks, and then tokenizing."""
-        
 
         padded_msa = list()
         for i, seq in enumerate(seed_msa):
+
+            seq = seq.upper()
+            input_chars = {s for s in seq}
+            valid_chars = {s for s in ESM_MSA_ALLOWED_AMINO_ACIDS}
+            if not input_chars.issubset(valid_chars):
+                raise (Exception("Invalid input character: " + ",".join(input_chars - valid_chars)))
+
             remaining_len = max_len - len(seq)
             seq = list(seq) #if input is a string, convert it to an array
             padded_msa.append( (str(i), seq + ["<mask>"] * remaining_len) )

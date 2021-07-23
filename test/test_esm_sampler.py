@@ -49,9 +49,25 @@ def test_get_init_seq_string_seed(esm_sampler_fixture):
     assert (out.tolist() == expected)
 
 
+def test_get_init_seq_string_seed_lowercase(esm_sampler_fixture):
+    sampler = esm_sampler_fixture
+    out = sampler.get_init_seq("aa", 5, 1)
+    expected = [[32, 5, 5, 33, 33, 33]]
+    assert (out.tolist() == expected)
+
+
+def test_get_init_seq_string_fails_if_non_standard_supplied(esm_sampler_fixture):
+    sampler = esm_sampler_fixture
+    try:
+        sampler.get_init_seq("X", 5, 1)
+        assert False
+    except Exception as e:
+        assert str(e) == "Invalid input character: X"
+
+
 def test_get_init_seq_array_of_seeds(esm_sampler_fixture):
     sampler = esm_sampler_fixture
-    out = sampler.get_init_seq(["AA"], 5, 1)
+    out = sampler.get_init_seq(["Aa"], 5, 1)
     expected = [[32, 5, 5, 33, 33, 33]]
     assert (out.tolist() == expected)
 

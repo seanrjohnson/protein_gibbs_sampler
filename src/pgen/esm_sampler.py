@@ -84,24 +84,35 @@ class ESM_sampler():
             end_offset = -1
         out = [ "".join([self.model.alphabet.get_tok(seq[i]) for i in range(0 + start_offset, len(seq) + end_offset) ]) for seq in batch]
         return out
-        
+
 
     def get_init_seq(self, seed_seq, max_len, batch_size = 1):
         """ Get initial sequence by padding seed_seq with masks """
         # In the BertGen paper they talk about padding with random sequence. I'm not sure that's a good idea. S.R.J.
         # Also, that code was commented out in the BertGen repo. So they probably didn't think was a good idea either.
 
+        def clean_seed_seq(seed_to_clean):
+            cleaned_seq = seed_to_clean.upper()
+            input_chars = {s for s in cleaned_seq}
+            valid_chars = {s for s in ESM_ALLOWED_AMINO_ACIDS}
+            if not input_chars.issubset(valid_chars):
+                raise (Exception("Invalid input character: " + ",".join(input_chars-valid_chars)))
+            return cleaned_seq
+
         if isinstance(seed_seq, list):
             batch = random.choices(seed_seq, k=batch_size)
             for i, seed in enumerate(batch):
                 remaining_len = max_len - len(seed)
-                batch[i] = (str(i), list(seed) + ["<mask>"] * remaining_len)
+                batch[i] = (str(i), list(clean_seed_seq(seed)) + ["<mask>"] * remaining_len)
 
         elif isinstance(seed_seq, str):
             remaining_len = max_len - len(seed_seq)
-            seed_seq = [x for x in seed_seq] #if input is a string, convert it to an array
+            seed_seq = [x for x in clean_seed_seq(seed_seq)] #if input is a string, convert it to an array
             batch = [(str(i), seed_seq + ["<mask>"] * remaining_len) for i in range(batch_size)]
-        
+
+        else:
+            raise (Exception("seed sequence should either be a string or list"))
+
         labels, strs, tokens = self.model.batch_converter(batch)
         return tokens
 
@@ -162,10 +173,10 @@ class ESM_sampler():
             cuda = self.cuda
             sequences = []
             n_batches = math.ceil(n_samples / batch_size)
-            
+
             if max_len is None:
                 max_len = sequence_length
-            
+
             if num_positions_percent is not None:
                 num_positions = int(max_len*(num_positions_percent / 100))
             if num_positions < 0:
@@ -196,12 +207,12 @@ class ESM_sampler():
                             target_indexes = self.get_random_target_index(batch_size, indexes, num_positions)
                     else:
                         target_indexes = [indexes] * batch_size
-                    
+
                     if mask:
                         self.mask_target_indexes(batch, target_indexes)
 
                     out = self.model.model(batch)["logits"]
-                    
+
                     for batch_index in range(batch_size):
                         for kk in target_indexes[batch_index]:
                             idx = generate_step(out[batch_index],
@@ -210,7 +221,9 @@ class ESM_sampler():
                                                 temperature=temperature,
                                                 sample=(ii < burnin),
                                                 valid_idx=self.valid_aa_idx)
+
                             batch[batch_index][kk] = idx
+
                 if batch_n == (n_batches - 1): #last batch, so maybe don't take all of them, just take enough to get to n_samples
                     sequences += self.untokenize_batch(batch, self.model.alphabet.prepend_bos, self.model.alphabet.append_eos)[0:n_samples - len(sequences)]
                 else:

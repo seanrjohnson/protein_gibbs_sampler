@@ -30,7 +30,7 @@ def test_untokenize_batch(msa_sampler):
 
 
 def test_get_init_msa(msa_sampler):
-    seed = ["AAA", "ABB", "ABCD"]
+    seed = ["AAA", "ACC", "ACDE"]
     batch_size = 2
     max_len = 5
     result = msa_sampler.get_init_msa(seed, 5, 2)
@@ -39,12 +39,30 @@ def test_get_init_msa(msa_sampler):
     assert result.shape[2] == max_len + 1
 
     assert result[0][0].tolist() == [0, 5, 5, 5, 32, 32]
-    assert result[0][1].tolist() == [0, 5, 25, 25, 32, 32]
-    assert result[0][2].tolist() == [0, 5, 25, 23, 13, 32]
+    assert result[0][1].tolist() == [0, 5, 23, 23, 32, 32]
+    assert result[0][2].tolist() == [0, 5, 23, 13, 9, 32]
+
+
+def test_get_init_msa_lowercase(msa_sampler):
+    seed = ["aaa", "aCC", "aCDE"]
+    result = msa_sampler.get_init_msa(seed, 5, 2)
+
+    assert result[0][0].tolist() == [0, 5, 5, 5, 32, 32]
+    assert result[0][1].tolist() == [0, 5, 23, 23, 32, 32]
+    assert result[0][2].tolist() == [0, 5, 23, 13, 9, 32]
+
+
+def test_get_init_msa_fails_if_non_standard_supplied(msa_sampler):
+    seed = ["X"]
+    try:
+        msa_sampler.get_init_msa(seed, 2)
+        assert False
+    except Exception as e:
+        assert str(e) == "Invalid input character: X"
 
 
 def test_generate_batch_equals_seqs(msa_sampler):
-    out = msa_sampler.generate(4, ["AAA", "AAB"], batch_size=4, max_len=3)
+    out = msa_sampler.generate(4, ["AAA", "AAC"], batch_size=4, max_len=3)
 
     assert (len(out) == 4)
     for s in out:
@@ -61,7 +79,7 @@ def test_generate_batch_equals_seqs(msa_sampler):
                              (10, 3, False, 1, False)
                          ])
 def test_generate_batch_with_varying_input(msa_sampler, batch_size, num_positions, mask, leader_length, in_order):
-    out = msa_sampler.generate(4, ["AAA", "AAB"], batch_size=batch_size, max_len=3, num_iters=2,
+    out = msa_sampler.generate(4, ["AAA", "AAC"], batch_size=batch_size, max_len=3, num_iters=2,
                                num_positions=num_positions, mask=mask, leader_length=leader_length, in_order=in_order)
 
     assert (len(out) == 4)
@@ -70,19 +88,19 @@ def test_generate_batch_with_varying_input(msa_sampler, batch_size, num_position
 
 
 def test_generate_batch_single_iteration(msa_sampler):
-    out = msa_sampler.generate(4, ["AAA", "AAB"], num_iters=1,
+    out = msa_sampler.generate(4, ["AAA", "AAC"], num_iters=1,
                                max_len=5, num_positions=1, in_order=True)
 
     assert (len(out) == 4)
 
     assert out[0][1:3] == "AA"
-    assert out[1][1:3] == "AB"
+    assert out[1][1:3] == "AC"
     assert out[2][1:3] == "AA"
-    assert out[3][1:3] == "AB"
+    assert out[3][1:3] == "AC"
 
 
 def test_generate_batch_randomly(msa_sampler):
-    out = msa_sampler.generate(4, ["AAA", "AAB"], num_iters=1,
+    out = msa_sampler.generate(4, ["AAA", "AAC"], num_iters=1,
                                max_len=5, num_positions=1, in_order=False)
 
     assert (len(out) == 4)
@@ -197,7 +215,7 @@ def test_allowable_amino_acid_locations_do_not_contain_amino_acids_we_cant_creat
 
 
 def test_generate_batch_only_includes_allowed_aa(msa_sampler):
-    out = msa_sampler.generate(10, ["AAA", "AAB"], num_iters=1, max_len=25)
+    out = msa_sampler.generate(10, ["AAA", "AAC"], num_iters=1, max_len=25)
 
     allowed = set(ESM_MSA_ALLOWED_AMINO_ACIDS)
     for sequence in out:
@@ -205,6 +223,6 @@ def test_generate_batch_only_includes_allowed_aa(msa_sampler):
 
 
 # def test_generate_batch_does_not_leave_unmasked_characters(msa_sampler):
-#     out = msa_sampler.generate(1, ["AAA", "AAB"], num_iters=1, max_len=5, num_positions=1)
+#     out = msa_sampler.generate(1, ["AAA", "AAC"], num_iters=1, max_len=5, num_positions=1)
 #
 #     assert "<mask>" not in out[0]
