@@ -35,6 +35,8 @@ pytest .
 
 If you have CUDA installed, everything should pass, otherwise there will be one skipped test.
 
+Running the tests for the first time might take a while because model weights need to be downloaded.
+
 ### Docker
 
 Setup container environment:
