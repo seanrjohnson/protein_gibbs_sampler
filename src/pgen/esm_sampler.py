@@ -264,3 +264,47 @@ class ESM_sampler():
             last_i = -1
         return indexes, last_i
 
+
+    def calculate_log_likelihood(self, seq, with_masking=True, verbose=False):
+        """
+            seq: a protein sequence string
+            with_masking: if True, then iterate over the sequence masking one position at a time and summing the log likelihoods of the correct choice at the masked positions.
+                        if False, then run the model just once, on the unmasked sequence.
+
+        """
+        # TODO: Allow batching to calculate likelihoods for multiple sequences at a time (how does padding effect likelihoods for sequences shorter than the longest sequence, hopefully not at all).
+
+        # Inspired by and borrowing code from:
+        # https://github.com/facebookresearch/esm/blob/master/variant-prediction/predict.py
+
+        log_likelihood_sum = 0
+        
+        batch = [(str(0), list(seq.upper())),]
+        _, _, tokens = self.model.batch_converter(batch)
+        range_start = 0
+        if self.model.alphabet.prepend_bos:
+            range_start = 1
+        
+        range_end = tokens.shape[1]
+        if self.model.alphabet.append_eos:
+            range_end -= 1
+        
+        assert len(seq) == len(list(range(range_start, range_end)))
+
+        with torch.no_grad():
+            if with_masking:
+                for idx in range(range_start, range_end):
+                    old_tok = tokens[0,idx].item()
+                    tokens[0,idx] = self.model.alphabet.mask_idx
+                    token_probs = torch.log_softmax(self.model.model(tokens)['logits'], dim=-1)
+                    if verbose:
+                        print(f"{self.model.alphabet.all_toks[old_tok]}\t{token_probs[0,idx,old_tok]}")
+                        print(" ".join([f"{x}:{token_probs[0,idx,self.model.alphabet.tok_to_idx[x]]}" for x in self.model.alphabet.all_toks]))
+                    log_likelihood_sum += token_probs[0,idx,old_tok]
+                    tokens[0,idx] = old_tok
+            else: #no masking, so we just need to calculate a single forward pass on the unmasked model
+                token_probs = torch.log_softmax(self.model.model(tokens)['logits'], dim=-1)
+                for idx in range(range_start, range_end):
+                    log_likelihood_sum += token_probs[0,idx,tokens[0,idx].item()]
+
+        return float(log_likelihood_sum / len(seq))
