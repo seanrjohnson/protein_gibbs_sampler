@@ -13,7 +13,7 @@ setup(
     license="MIT",
     packages=find_packages('src'),
     package_dir={'': 'src'},
-    scripts=["src/pgen/pgen_esm.py", "src/pgen/pgen_msa.py", "src/pgen/pgen_esm_from_fasta.py"],
+    scripts=["src/pgen/pgen_esm.py", "src/pgen/pgen_msa.py", "src/pgen/pgen_esm_from_fasta.py", "src/pgen/likelihood_esm.py"],
     # py_modules=[splitext(basename(path))[0] for path in glob('src/pgen/*.py')],
     install_requires=requirements,
     include_package_data=True,
