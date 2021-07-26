@@ -5,19 +5,21 @@ from pgen import models
 from pgen.utils import parse_fasta, RawAndDefaultsFormatter
 from pathlib import Path
 import sys
+import tqdm
 
 
 model_map = {"esm1b":models.ESM1b, "esm6":models.ESM6, "esm12":models.ESM12, "esm34":models.ESM34, "esm1v":models.ESM1v}
 
-def main(input_h, output_h, args):
+def main(input_h, output_h, masking_off, device, model):
 
-    sampler = ESM_sampler(model_map[args.model](),device=args.device)
+    sampler = ESM_sampler(model_map[model](),device=device)
     
-    in_seqs = zip(parse_fasta(input_h, return_names=True))
+    in_seqs = list(zip(*parse_fasta(input_h, return_names=True)))
+    print(in_seqs)
     scores=list()
-    for name, seq in in_seqs:
+    for name, seq in tqdm.tqdm(in_seqs):
         scores.append(
-           (name, sampler.log_likelihood(seq, with_masking=not args.masking_off))
+           (name, sampler.log_likelihood(seq, with_masking=not masking_off))
         )
     for name, score in scores:
         print(f"{name}\t{score}",file=output_h)
@@ -48,7 +50,7 @@ if __name__ == "__main__":
     else:
         output_handle = sys.stdout
 
-    main(input_handle, output_handle, args.device, args.model)
+    main(input_handle, output_handle, args.masking_off, args.device, args.model)
 
     if args.i is not None:
         input_handle.close()
