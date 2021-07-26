@@ -15,13 +15,11 @@ def main(input_h, output_h, masking_off, device, model):
     sampler = ESM_sampler(model_map[model](),device=device)
     
     in_seqs = list(zip(*parse_fasta(input_h, return_names=True)))
-    scores=list()
     for name, seq in tqdm.tqdm(in_seqs):
-        scores.append(
-           (name, sampler.log_likelihood(seq, with_masking=not masking_off))
-        )
-    for name, score in scores:
+        score = sampler.log_likelihood(seq, with_masking=not masking_off)
         print(f"{name}\t{score}",file=output_h)
+        output_h.flush()
+        
     
 
 if __name__ == "__main__":
