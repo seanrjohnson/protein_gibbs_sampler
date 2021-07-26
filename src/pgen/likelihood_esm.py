@@ -15,7 +15,6 @@ def main(input_h, output_h, masking_off, device, model):
     sampler = ESM_sampler(model_map[model](),device=device)
     
     in_seqs = list(zip(*parse_fasta(input_h, return_names=True)))
-    print(in_seqs)
     scores=list()
     for name, seq in tqdm.tqdm(in_seqs):
         scores.append(
