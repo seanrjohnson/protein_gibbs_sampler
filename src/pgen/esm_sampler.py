@@ -292,7 +292,7 @@ class ESM_sampler():
             range_end -= 1
         
         assert len(seq) == len(list(range(range_start, range_end)))
-
+        tokens = tokens.cuda() if self.cuda else tokens
         with torch.no_grad():
             if with_masking:
                 for idx in range(range_start, range_end):
