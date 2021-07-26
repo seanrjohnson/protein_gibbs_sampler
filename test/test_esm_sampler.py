@@ -260,3 +260,12 @@ def test_generate_batch_only_includes_allowed_aa(esm_sampler_fixture):
 #     out = esm_sampler_fixture.generate(1, "", num_iters=1, max_len=5, num_positions=1)
 #
 #     assert "<mask>" not in out[0]
+
+def test_log_likelihood(esm_sampler_fixture):
+    assert esm_sampler_fixture.calculate_log_likelihood("MRHGDISSSNDTVGVAVVNYKMPRLHTAAEVLDNAR") == pytest.approx(-2.843970775604248)
+    assert esm_sampler_fixture.calculate_log_likelihood("LTWEEQCKTCKGCRYNFQHE") == pytest.approx(-3.0787816047668457)
+    assert esm_sampler_fixture.calculate_log_likelihood("ACDEFGHIKLMNPQRSTVWY") == pytest.approx(-3.290297269821167)
+
+    assert esm_sampler_fixture.calculate_log_likelihood("MRHGDISSSNDTVGVAVVNYKMPRLHTAAEVLDNAR", with_masking=False) == pytest.approx(-2.1893723011016846)
+    assert esm_sampler_fixture.calculate_log_likelihood("LTWEEQCKTCKGCRYNFQHE", with_masking=False) == pytest.approx(-2.3772685527801514)
+    assert esm_sampler_fixture.calculate_log_likelihood("ACDEFGHIKLMNPQRSTVWY", with_masking=False) == pytest.approx(-2.412991762161255)
