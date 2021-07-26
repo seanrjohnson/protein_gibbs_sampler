@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 
 
-model_map = {"esm1b":models.ESM1b, "esm6":models.ESM6, "esm12":models.ESM12, "esm34":models.ESM34}
+model_map = {"esm1b":models.ESM1b, "esm6":models.ESM6, "esm12":models.ESM12, "esm34":models.ESM34, "esm1v":models.ESM1v}
 
 def main(input_h, output_p, args):
 
@@ -59,7 +59,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=1, help="batch size for sampling (sequences per iteration).")
     parser.add_argument("--num_output_sequences", type=int, default=1, help="total number of sequences to generate.")
     parser.add_argument("--device", type=str, default="cpu", choices={"cpu","gpu"}, help="cpu or gpu")
-    parser.add_argument("--model", type=str, default="esm1b", choices={"esm1b", "esm6", "esm12", "esm34"}, help="which model to use")
+    parser.add_argument("--model", type=str, default="esm1b", choices={"esm1b", "esm6", "esm12", "esm34", "esm1v"}, help="which model to use")
 
     args = parser.parse_args()
 

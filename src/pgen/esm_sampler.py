@@ -85,29 +85,31 @@ class ESM_sampler():
         out = [ "".join([self.model.alphabet.get_tok(seq[i]) for i in range(0 + start_offset, len(seq) + end_offset) ]) for seq in batch]
         return out
 
+    @staticmethod
+    def clean_seed_seq(seed_to_clean):
+        cleaned_seq = seed_to_clean.upper()
+        input_chars = {s for s in cleaned_seq}
+        valid_chars = {s for s in ESM_ALLOWED_AMINO_ACIDS}
+        if not input_chars.issubset(valid_chars):
+            raise (Exception("Invalid input character: " + ",".join(input_chars-valid_chars)))
+        return cleaned_seq
 
     def get_init_seq(self, seed_seq, max_len, batch_size = 1):
         """ Get initial sequence by padding seed_seq with masks """
         # In the BertGen paper they talk about padding with random sequence. I'm not sure that's a good idea. S.R.J.
         # Also, that code was commented out in the BertGen repo. So they probably didn't think was a good idea either.
 
-        def clean_seed_seq(seed_to_clean):
-            cleaned_seq = seed_to_clean.upper()
-            input_chars = {s for s in cleaned_seq}
-            valid_chars = {s for s in ESM_ALLOWED_AMINO_ACIDS}
-            if not input_chars.issubset(valid_chars):
-                raise (Exception("Invalid input character: " + ",".join(input_chars-valid_chars)))
-            return cleaned_seq
+
 
         if isinstance(seed_seq, list):
             batch = random.choices(seed_seq, k=batch_size)
             for i, seed in enumerate(batch):
                 remaining_len = max_len - len(seed)
-                batch[i] = (str(i), list(clean_seed_seq(seed)) + ["<mask>"] * remaining_len)
+                batch[i] = (str(i), list(self.clean_seed_seq(seed)) + ["<mask>"] * remaining_len)
 
         elif isinstance(seed_seq, str):
             remaining_len = max_len - len(seed_seq)
-            seed_seq = [x for x in clean_seed_seq(seed_seq)] #if input is a string, convert it to an array
+            seed_seq = [x for x in self.clean_seed_seq(seed_seq)] #if input is a string, convert it to an array
             batch = [(str(i), seed_seq + ["<mask>"] * remaining_len) for i in range(batch_size)]
 
         else:
@@ -265,7 +267,7 @@ class ESM_sampler():
         return indexes, last_i
 
 
-    def calculate_log_likelihood(self, seq, with_masking=True, verbose=False):
+    def log_likelihood(self, seq, with_masking=True, verbose=False):
         """
             seq: a protein sequence string
             with_masking: if True, then iterate over the sequence masking one position at a time and summing the log likelihoods of the correct choice at the masked positions.
@@ -279,7 +281,7 @@ class ESM_sampler():
 
         log_likelihood_sum = 0
         
-        batch = [(str(0), list(seq.upper())),]
+        batch = [(str(0), list(self.clean_seed_seq(seq)) ),]
         _, _, tokens = self.model.batch_converter(batch)
         range_start = 0
         if self.model.alphabet.prepend_bos:

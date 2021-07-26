@@ -220,6 +220,7 @@ def parse_fasta(filename, return_names=False, clean=None, full_name=False):
                     if 'delete' then delete all lowercase "." and "*" characters. This is usually if the input is an a2m file and you don't want to preserve the original length.
                     if 'upper' then delete "*" characters, convert lowercase to upper case, and "." to "-"
                     if 'unalign' then convert to upper, delete ".", "*", "-"
+            full_name: if True, then returns the entire name. By default only the part before the first whitespace is returned.
 
         output: sequences or names, sequences
     """
