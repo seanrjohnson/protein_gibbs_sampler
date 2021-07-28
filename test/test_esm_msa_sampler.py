@@ -9,6 +9,7 @@ from pgen.esm_msa_sampler import ESM_MSA_ALLOWED_AMINO_ACIDS
 def esm_msa():
     return models.ESM_MSA1()
 
+
 @pytest.fixture(scope="session")
 def msa_sampler(esm_msa):
     sampler = esm_msa_sampler.ESM_MSA_sampler(esm_msa, device="cpu")
@@ -119,7 +120,7 @@ def test_get_target_indexes_in_order(msa_sampler):
 
 
 def test_get_target_indexes_randomly(msa_sampler):
-    indexes = [0,1,2,3]
+    indexes = [0, 1, 2, 3]
     target_indexes = msa_sampler.get_random_target_index(
         batch_size=2, indexes=indexes, num_positions=2,
         num_sequences=3)
@@ -222,7 +223,30 @@ def test_generate_batch_only_includes_allowed_aa(msa_sampler):
         assert len({s for s in sequence}.difference(allowed)) == 0
 
 
-# def test_generate_batch_does_not_leave_unmasked_characters(msa_sampler):
-#     out = msa_sampler.generate(1, ["AAA", "AAC"], num_iters=1, max_len=5, num_positions=1)
-#
-#     assert "<mask>" not in out[0]
+MSA_BATCH_EXAMPLE = [
+    ('4', 'MSSESELALLRDSVDRLDANLVALLAQR'),
+    ('3', 'MSDPDPLAAARERIKALDEQLLALLAER'),
+    ('2', 'MSQPNDLPSLRERIDALDRRLVALLAER'),
+    ('1', 'MSEEENLKTCREKLSEIDDKIIKLLAER'),
+    ('0', 'MTSPDELAAARARIDELDARLVALLAER')]
+
+
+def test_likelihood_without_masking(msa_sampler):
+    msa = MSA_BATCH_EXAMPLE
+    likelihood = msa_sampler.log_likelihood(msa, target_index=4, with_masking=False, mask_entire_sequence=False)
+
+    assert likelihood == pytest.approx(-2.059587240219116)
+
+
+def test_likelihood_with_individual_masking(msa_sampler):
+    msa = MSA_BATCH_EXAMPLE
+    likelihood = msa_sampler.log_likelihood(msa, target_index=4, with_masking=True, mask_entire_sequence=False)
+
+    assert likelihood == pytest.approx(-0.738074004650116)
+
+
+def test_likelihood_with_masking_entire_sequence(msa_sampler):
+    msa = MSA_BATCH_EXAMPLE
+    likelihood = msa_sampler.log_likelihood(msa, target_index=4, with_masking=True, mask_entire_sequence=True)
+
+    assert likelihood == pytest.approx(-2.3227384090423584)

@@ -238,30 +238,32 @@ class ESM_MSA_sampler():
         batch = [(idx, self.clean_seed_seq(seq)) for idx, seq in msa]
         _, _, tokens = self.model.batch_converter(batch)
 
-        num_sequences = len(msa)
         sequence_length = len(msa[0][1])
 
-        # TODO make this work for MSA
         range_start = 0
-        # if self.model.alphabet.prepend_bos:
-        #     range_start = 1
+        if self.model.alphabet.prepend_bos:
+            range_start = 1
 
-        range_end = sequence_length
-        # if self.model.alphabet.append_eos:
-        #     range_end -= 1
+        range_end = tokens.shape[2]
+        if self.model.alphabet.append_eos:
+            range_end -= 1
 
-        # assert sequence_length == len(list(range(range_start, range_end))), sequence_length - len(list(range(range_start, range_end)))
+        assert sequence_length == len(range(range_start, range_end)), sequence_length - len(range(range_start, range_end))
 
-        # out shape: (batch, sequences, sequence_len, alphabet_digits)
+        # batch shape: (batch, 2 (tuple), sequence_len)
+        # tokens shape: (batch, sequences, sequence_len, alphabet_digits)
         with torch.no_grad():
             if mask_entire_sequence and with_masking:
-                for kk in range(range_start, range_end):
-                    batch[0][target_index][kk] = self.model.alphabet.mask_idx
+                original_tokens = tokens[0, target_index].clone().detach()
+
+                for idx in range(range_start, range_end):
+                    tokens[0, target_index, idx] = self.model.alphabet.mask_idx
 
                 token_probs = torch.log_softmax(self.model.model(tokens)['logits'], dim=-1)
+
                 for idx in range(range_start, range_end):
-                    # TODO these indexes need work
-                    log_likelihood_sum += token_probs[0, 0, -1, tokens[0, 0, idx].item()]
+                    log_likelihood_sum += token_probs[0, target_index, idx, original_tokens[idx].item()]
+
             elif with_masking:
                 for idx in range(range_start, range_end):
                     old_tok = tokens[0, target_index, idx].item()
@@ -271,10 +273,11 @@ class ESM_MSA_sampler():
                         print(f"{self.model.alphabet.all_toks[old_tok]}\t{token_probs[0,target_index,idx,old_tok]}")
                         print(" ".join([f"{x}:{token_probs[0,0,idx,self.model.alphabet.tok_to_idx[x]]}" for x in self.model.alphabet.all_toks]))
                     log_likelihood_sum += token_probs[0, target_index, idx, old_tok]
-                    tokens[0,target_index,idx] = old_tok
+                    tokens[0, target_index, idx] = old_tok
+
             else:  # no masking, so we just need to calculate a single forward pass on the unmasked model
                 token_probs = torch.log_softmax(self.model.model(tokens)['logits'], dim=-1)
                 for idx in range(range_start, range_end):
-                    log_likelihood_sum += token_probs[0, 0, -1, tokens[0, 0, idx].item()] # TODO these indexes need work
+                    log_likelihood_sum += token_probs[0, target_index, idx, tokens[0, 0, idx].item()]
 
         return float(log_likelihood_sum / sequence_length)
