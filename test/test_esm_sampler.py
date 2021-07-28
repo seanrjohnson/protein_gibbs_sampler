@@ -266,6 +266,25 @@ def test_log_likelihood(esm_sampler_fixture):
     assert esm_sampler_fixture.log_likelihood("LTWEEQCKTCKGCRYNFQHE") == pytest.approx(-3.0787816047668457)
     assert esm_sampler_fixture.log_likelihood("ACDEFGHIKLMNPQRSTVWY") == pytest.approx(-3.290297269821167)
 
+
+def test_log_likelihood_without_mask(esm_sampler_fixture):
     assert esm_sampler_fixture.log_likelihood("MRHGDISSSNDTVGVAVVNYKMPRLHTAAEVLDNAR", with_masking=False) == pytest.approx(-2.1893723011016846)
     assert esm_sampler_fixture.log_likelihood("LTWEEQCKTCKGCRYNFQHE", with_masking=False) == pytest.approx(-2.3772685527801514)
     assert esm_sampler_fixture.log_likelihood("ACDEFGHIKLMNPQRSTVWY", with_masking=False) == pytest.approx(-2.412991762161255)
+
+
+def test_log_likelihood_batch(esm_sampler_fixture):
+    input_seq = ["MRHGDISSSNDTVGVAVVNYKMPRLHTAAEVLDNAR", "LTWEEQCKTCKGCRYNFQHE", "ACDEFGHIKLMNPQRSTVWY"]
+    mask_results = esm_sampler_fixture.log_likelihood_batch(input_seq)
+
+    assert mask_results[0] == pytest.approx(-2.843970775604248)
+    assert mask_results[1] == pytest.approx(-3.0787816047668457)
+    assert mask_results[2] == pytest.approx(-3.290297269821167)
+
+
+def test_log_likelihood_batch_without_mask(esm_sampler_fixture):
+    input_seq = ["MRHGDISSSNDTVGVAVVNYKMPRLHTAAEVLDNAR", "LTWEEQCKTCKGCRYNFQHE", "ACDEFGHIKLMNPQRSTVWY"]
+    no_mask_results = esm_sampler_fixture.log_likelihood_batch(input_seq, with_masking=False)
+    assert no_mask_results[0] == pytest.approx(-2.1893723011016846)
+    assert no_mask_results[1] == pytest.approx(-2.3772685527801514)
+    assert no_mask_results[2] == pytest.approx(-2.412991762161255)

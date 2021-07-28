@@ -242,7 +242,7 @@ def test_likelihood_with_individual_masking(msa_sampler):
     msa = MSA_BATCH_EXAMPLE
     likelihood = msa_sampler.log_likelihood(msa, target_index=4, with_masking=True, mask_entire_sequence=False)
 
-    assert likelihood == pytest.approx(-0.738074004650116)
+    assert likelihood == pytest.approx(-0.738074004650116) # this is weird, something is probably wrong??
 
 
 def test_likelihood_with_masking_entire_sequence(msa_sampler):
