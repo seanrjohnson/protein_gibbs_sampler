@@ -242,32 +242,26 @@ class ESM_MSA_sampler():
         batch = [[(idx, self.clean_seed_seq(seq)) for idx, seq in msa] for msa in msa_list]
         _, _, tokens = self.model.batch_converter(batch)
 
-        range_start = 0
-        if self.model.alphabet.prepend_bos:
-            range_start = 1
-
-        range_end = tokens.shape[2]
-        end_modifier = 0
-        if self.model.alphabet.append_eos:
-            range_end -= 1
-            end_modifier -= 1
+        range_start = 1 if self.model.alphabet.prepend_bos else 0
+        end_modifier = -1 if self.model.alphabet.append_eos else 0
 
         msa_seq_lengths = [len(msa[0][1]) for msa in msa_list]
         batch_range_end = [seq_len + range_start + end_modifier for seq_len in msa_seq_lengths]
+        overall_range_end = tokens.shape[2] + end_modifier
 
-        assert max(msa_seq_lengths) == len(range(range_start, range_end))
+        assert max(msa_seq_lengths) == len(range(range_start, overall_range_end))
         for b_idx in range(n_batches):
             assert msa_seq_lengths[b_idx] == len(range(range_start, batch_range_end[b_idx])), b_idx
 
         # batch shape: (batch, 2 (tuple), sequence_len)
         # tokens shape: (batch, sequences, sequence_len, alphabet_digits)
+        tokens = tokens.cuda() if self.cuda else tokens
         with torch.no_grad():
             if mask_entire_sequence and with_masking:
                 original_tokens = tokens[:, target_index].clone().detach()
 
-                for idx in range(range_start, range_end):
-                    for b_idx in range(n_batches):
-                        tokens[b_idx, target_index, idx] = self.model.alphabet.mask_idx
+                for idx in range(range_start, overall_range_end):
+                    tokens[:, target_index, idx] = self.model.alphabet.mask_idx
 
                 token_probs = torch.log_softmax(self.model.model(tokens)['logits'], dim=-1)
 
@@ -277,17 +271,16 @@ class ESM_MSA_sampler():
                         tokens[b_idx, target_index, idx] = original_tokens[b_idx, idx]
 
             elif with_masking:
-                for idx in range(range_start, range_end):
+                for idx in range(range_start, overall_range_end):
                     original_tokens = tokens[:, target_index, idx].clone().detach()
-                    for batch_idx in range(n_batches):
-                        tokens[batch_idx, target_index, idx] = self.model.alphabet.mask_idx
+                    tokens[:, target_index, idx] = self.model.alphabet.mask_idx
 
                     token_probs = torch.log_softmax(self.model.model(tokens)['logits'], dim=-1)
 
                     for batch_idx in range(n_batches):
-                        # if verbose:
-                        #     print(f"{self.model.alphabet.all_toks[old_tok]}\t{token_probs[batch_idx,target_index,idx,old_tok]}")
-                        #     print(" ".join([f"{x}:{token_probs[batch_idx,target_index,idx,self.model.alphabet.tok_to_idx[x]]}" for x in self.model.alphabet.all_toks]))
+                        if verbose:
+                            print(f"{self.model.alphabet.all_toks[original_tokens[batch_idx]]}\t{token_probs[batch_idx,target_index,idx,original_tokens[batch_idx]]}")
+                            print(" ".join([f"{x}:{token_probs[batch_idx,target_index,idx,self.model.alphabet.tok_to_idx[x]]}" for x in self.model.alphabet.all_toks]))
 
                         if idx < batch_range_end[batch_idx]:
                             log_likelihood_sum[batch_idx] += token_probs[batch_idx, target_index, idx, original_tokens[batch_idx].item()]

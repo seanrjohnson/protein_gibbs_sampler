@@ -289,37 +289,31 @@ class ESM_sampler():
         batch = [(str(idx), list(self.clean_seed_seq(seq))) for idx, seq in enumerate(seq_list)]
         _, _, tokens = self.model.batch_converter(batch)
 
-        range_start = 0
-        if self.model.alphabet.prepend_bos:
-            range_start = 1
-
-        range_end = tokens.shape[1]
-        end_modifier = 0
-        if self.model.alphabet.append_eos:
-            range_end -= 1
-            end_modifier -= 1
+        range_start = 1 if self.model.alphabet.prepend_bos else 0
+        end_modifier = -1 if self.model.alphabet.append_eos else 0
 
         batch_range_end = [len(seq) + range_start + end_modifier for seq in seq_list]
+        overall_range_end = tokens.shape[1] + end_modifier
 
-        assert max(len(seq) for seq in seq_list) == len(range(range_start, range_end))
+
+        assert max(len(seq) for seq in seq_list) == len(range(range_start, overall_range_end))
         for b_idx in range(n_batches):
             assert len(seq_list[b_idx]) == len(range(range_start, batch_range_end[b_idx])), b_idx
 
         tokens = tokens.cuda() if self.cuda else tokens
         with torch.no_grad():
             if with_masking:
-                for idx in range(range_start, range_end):
+                for idx in range(range_start, overall_range_end):
                     old_toks = tokens[:, idx].clone().detach()
-                    for batch_idx in range(n_batches):
-                        tokens[batch_idx, idx] = self.model.alphabet.mask_idx
+                    tokens[:, idx] = self.model.alphabet.mask_idx
 
                     token_probs = torch.log_softmax(self.model.model(tokens)['logits'], dim=-1)
 
                     for batch_idx in range(n_batches):
-                        # if verbose:
-                        #     print(f"{self.model.alphabet.all_toks[old_toks[batch_idx]]}\t{token_probs[batch_idx, idx, old_toks[batch_idx]]}")
-                        #     print(" ".join([f"{x}:{token_probs[batch_idx, idx, self.model.alphabet.tok_to_idx[x]]}" for x in
-                        #                     self.model.alphabet.all_toks]))
+                        if verbose:
+                            print(f"{self.model.alphabet.all_toks[old_toks[batch_idx]]}\t{token_probs[batch_idx, idx, old_toks[batch_idx]]}")
+                            print(" ".join([f"{x}:{token_probs[batch_idx, idx, self.model.alphabet.tok_to_idx[x]]}" for x in
+                                            self.model.alphabet.all_toks]))
                         if idx < batch_range_end[batch_idx]:
                             log_likelihood_sum[batch_idx] += token_probs[batch_idx, idx, old_toks[batch_idx]]
                         tokens[batch_idx, idx] = old_toks[batch_idx]
