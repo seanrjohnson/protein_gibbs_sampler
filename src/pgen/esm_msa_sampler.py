@@ -228,56 +228,75 @@ class ESM_MSA_sampler():
             mask_entire_sequence: if True, mask entire sequence instead of iterating over each position
 
         """
-        # TODO: Allow batching to calculate likelihoods for multiple sequences at a time (how does padding effect likelihoods for sequences shorter than the longest sequence, hopefully not at all).
+        return self.log_likelihood_batch([msa], target_index, with_masking, verbose, mask_entire_sequence)[0]
+
+    def log_likelihood_batch(self, msa_list, target_index=-1, with_masking=True, verbose=False,
+                       mask_entire_sequence=False):
 
         # Inspired by and borrowing code from:
         # https://github.com/facebookresearch/esm/blob/master/variant-prediction/predict.py
 
-        log_likelihood_sum = 0
+        n_batches = len(msa_list)
+        log_likelihood_sum = [0 for _ in range(n_batches)]
 
-        batch = [(idx, self.clean_seed_seq(seq)) for idx, seq in msa]
+        batch = [[(idx, self.clean_seed_seq(seq)) for idx, seq in msa] for msa in msa_list]
         _, _, tokens = self.model.batch_converter(batch)
-
-        sequence_length = len(msa[0][1])
 
         range_start = 0
         if self.model.alphabet.prepend_bos:
             range_start = 1
 
         range_end = tokens.shape[2]
+        end_modifier = 0
         if self.model.alphabet.append_eos:
             range_end -= 1
+            end_modifier -= 1
 
-        assert sequence_length == len(range(range_start, range_end)), sequence_length - len(range(range_start, range_end))
+        msa_seq_lengths = [len(msa[0][1]) for msa in msa_list]
+        batch_range_end = [seq_len + range_start + end_modifier for seq_len in msa_seq_lengths]
+
+        assert max(msa_seq_lengths) == len(range(range_start, range_end))
+        for b_idx in range(n_batches):
+            assert msa_seq_lengths[b_idx] == len(range(range_start, batch_range_end[b_idx])), b_idx
 
         # batch shape: (batch, 2 (tuple), sequence_len)
         # tokens shape: (batch, sequences, sequence_len, alphabet_digits)
         with torch.no_grad():
             if mask_entire_sequence and with_masking:
-                original_tokens = tokens[0, target_index].clone().detach()
+                original_tokens = tokens[:, target_index].clone().detach()
 
                 for idx in range(range_start, range_end):
-                    tokens[0, target_index, idx] = self.model.alphabet.mask_idx
+                    for b_idx in range(n_batches):
+                        tokens[b_idx, target_index, idx] = self.model.alphabet.mask_idx
 
                 token_probs = torch.log_softmax(self.model.model(tokens)['logits'], dim=-1)
 
-                for idx in range(range_start, range_end):
-                    log_likelihood_sum += token_probs[0, target_index, idx, original_tokens[idx].item()]
+                for b_idx in range(n_batches):
+                    for idx in range(range_start, batch_range_end[b_idx]):
+                        log_likelihood_sum[b_idx] += token_probs[b_idx, target_index, idx, original_tokens[b_idx, idx].item()]
+                        tokens[b_idx, target_index, idx] = original_tokens[b_idx, idx]
 
             elif with_masking:
                 for idx in range(range_start, range_end):
-                    old_tok = tokens[0, target_index, idx].item()
-                    tokens[0, target_index, idx] = self.model.alphabet.mask_idx
+                    original_tokens = tokens[:, target_index, idx].clone().detach()
+                    for batch_idx in range(n_batches):
+                        tokens[batch_idx, target_index, idx] = self.model.alphabet.mask_idx
+
                     token_probs = torch.log_softmax(self.model.model(tokens)['logits'], dim=-1)
-                    if verbose:
-                        print(f"{self.model.alphabet.all_toks[old_tok]}\t{token_probs[0,target_index,idx,old_tok]}")
-                        print(" ".join([f"{x}:{token_probs[0,0,idx,self.model.alphabet.tok_to_idx[x]]}" for x in self.model.alphabet.all_toks]))
-                    log_likelihood_sum += token_probs[0, target_index, idx, old_tok]
-                    tokens[0, target_index, idx] = old_tok
+
+                    for batch_idx in range(n_batches):
+                        # if verbose:
+                        #     print(f"{self.model.alphabet.all_toks[old_tok]}\t{token_probs[batch_idx,target_index,idx,old_tok]}")
+                        #     print(" ".join([f"{x}:{token_probs[batch_idx,target_index,idx,self.model.alphabet.tok_to_idx[x]]}" for x in self.model.alphabet.all_toks]))
+
+                        if idx < batch_range_end[batch_idx]:
+                            log_likelihood_sum[batch_idx] += token_probs[batch_idx, target_index, idx, original_tokens[batch_idx].item()]
+                        tokens[batch_idx, target_index, idx] = original_tokens[batch_idx].item()
 
             else:  # no masking, so we just need to calculate a single forward pass on the unmasked model
                 token_probs = torch.log_softmax(self.model.model(tokens)['logits'], dim=-1)
-                for idx in range(range_start, range_end):
-                    log_likelihood_sum += token_probs[0, target_index, idx, tokens[0, 0, idx].item()]
+                for b_idx in range(n_batches):
+                    for idx in range(range_start, batch_range_end[b_idx]):
+                        log_likelihood_sum[b_idx] += token_probs[b_idx, target_index, idx, tokens[b_idx, target_index, idx].item()]
 
-        return float(log_likelihood_sum / sequence_length)
+        return [float(l_sum / msa_seq_lengths[idx]) for idx, l_sum in enumerate(log_likelihood_sum)]

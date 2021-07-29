@@ -223,30 +223,63 @@ def test_generate_batch_only_includes_allowed_aa(msa_sampler):
         assert len({s for s in sequence}.difference(allowed)) == 0
 
 
-MSA_BATCH_EXAMPLE = [
-    ('4', 'MSSESELALLRDSVDRLDANLVALLAQR'),
-    ('3', 'MSDPDPLAAARERIKALDEQLLALLAER'),
-    ('2', 'MSQPNDLPSLRERIDALDRRLVALLAER'),
-    ('1', 'MSEEENLKTCREKLSEIDDKIIKLLAER'),
-    ('0', 'MTSPDELAAARARIDELDARLVALLAER')]
+@pytest.fixture()
+def msa_batch_example():
+    return [[
+        ('4', 'MSSESELALLRDSVDRLDANLVALLAQR'),
+        ('3', 'MSDPDPLAAARERIKALDEQLLALLAER'),
+        ('2', 'MSQPNDLPSLRERIDALDRRLVALLAER'),
+        ('1', 'MSEEENLKTCREKLSEIDDKIIKLLAER'),
+        ('0', 'MTSPDELAAARARIDELDARLVALLAER')], [
+        ('4', 'MSSESELALLRDSVDRLDANLVALLAQRLAVARQVGRYKQLHGL'),
+        ('3', 'MSDPDPLAAARERIKALDEQLLALLAERVACALEVGRLKATHGL'),
+        ('2', 'MSQPNDLPSLRERIDALDRRLVALLAERAQTVHEVGRLKAERGL'),
+        ('1', 'MSEEENLKTCREKLSEIDDKIIKLLAERFKIAEAIGKYKAENGL'),
+        ('0', 'MTSPDELAAARARIDELDARLVALLAERRAAVESVGRLKAESGL')]]
 
 
-def test_likelihood_without_masking(msa_sampler):
-    msa = MSA_BATCH_EXAMPLE
-    likelihood = msa_sampler.log_likelihood(msa, target_index=4, with_masking=False, mask_entire_sequence=False)
-
-    assert likelihood == pytest.approx(-2.059587240219116)
-
-
-def test_likelihood_with_individual_masking(msa_sampler):
-    msa = MSA_BATCH_EXAMPLE
-    likelihood = msa_sampler.log_likelihood(msa, target_index=4, with_masking=True, mask_entire_sequence=False)
-
-    assert likelihood == pytest.approx(-0.738074004650116) # this is weird, something is probably wrong??
+def test_likelihood_without_masking(msa_sampler, msa_batch_example):
+    assert msa_sampler.log_likelihood(msa_batch_example[0], target_index=4, with_masking=False,
+                                      mask_entire_sequence=False) == pytest.approx(-0.06248655170202255)
+    assert msa_sampler.log_likelihood(msa_batch_example[1], target_index=4, with_masking=False,
+                                      mask_entire_sequence=False) == pytest.approx(-0.1334836632013321)
 
 
-def test_likelihood_with_masking_entire_sequence(msa_sampler):
-    msa = MSA_BATCH_EXAMPLE
-    likelihood = msa_sampler.log_likelihood(msa, target_index=4, with_masking=True, mask_entire_sequence=True)
+def test_likelihood_with_individual_masking(msa_sampler, msa_batch_example):
+    assert msa_sampler.log_likelihood(msa_batch_example[0], target_index=4, with_masking=True,
+                                      mask_entire_sequence=False) == pytest.approx(
+        -0.738074004650116)
+    assert msa_sampler.log_likelihood(msa_batch_example[1], target_index=4, with_masking=True,
+                                      mask_entire_sequence=False) == pytest.approx(
+        -0.876354455947876)
 
-    assert likelihood == pytest.approx(-2.3227384090423584)
+
+#
+#
+def test_likelihood_with_masking_entire_sequence(msa_sampler, msa_batch_example):
+    assert msa_sampler.log_likelihood(msa_batch_example[0], target_index=4, with_masking=True,
+                                      mask_entire_sequence=True) == pytest.approx(-2.3227384090423584)
+    assert msa_sampler.log_likelihood(msa_batch_example[1], target_index=4, with_masking=True,
+                                      mask_entire_sequence=True) == pytest.approx(-2.8657891750335693)
+
+
+def test_likelihood_batch_without_masking(msa_sampler, msa_batch_example):
+    result = msa_sampler.log_likelihood_batch(msa_batch_example, target_index=4, with_masking=False,
+                                              mask_entire_sequence=False)
+    assert result[0] == pytest.approx(-0.06248655170202255)
+    assert result[1] == pytest.approx(-0.1334836632013321)
+
+
+# this is weird it does so much better, something is probably wrong??
+def test_likelihood_batch_with_individual_masking(msa_sampler, msa_batch_example):
+    result = msa_sampler.log_likelihood_batch(msa_batch_example, target_index=4, with_masking=True,
+                                        mask_entire_sequence=False)
+    assert result[0] == pytest.approx(-0.738074004650116)
+    assert result[1] == pytest.approx(-0.876354455947876)
+
+
+def test_likelihood_batch_with_masking_entire_sequence(msa_sampler, msa_batch_example):
+    result = msa_sampler.log_likelihood_batch(msa_batch_example, target_index=4, with_masking=True,
+                                              mask_entire_sequence=True)
+    assert result[0] == pytest.approx(-2.3227384090423584)
+    assert result[1] == pytest.approx(-2.8657891750335693)
