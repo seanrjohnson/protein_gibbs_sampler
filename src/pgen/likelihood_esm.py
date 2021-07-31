@@ -24,7 +24,7 @@ def main(input_h, output_h, masking_off, device, model, batch_size):
         tmp_seq_list.append(seq)
         tmp_name_list.append(name)
         if len(tmp_seq_list) == batch_size or i+1 == len(in_seqs):
-            scores = sampler.log_likelihood_batch(seq, with_masking=not masking_off)
+            scores = sampler.log_likelihood_batch(tmp_seq_list, with_masking=not masking_off)
             for j in range(len(scores)):
                 print(f"{tmp_name_list[j]}\t{scores[j]}", file=output_h)
             output_h.flush()
@@ -46,7 +46,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", default=1, help="How many sequences to batch together.")
     parser.add_argument("--device", type=str, default="cpu", choices={"cpu","gpu"}, help="cpu or gpu")
     parser.add_argument("--masking_off", action="store_true", default=False, help="If set, no masking is done.")
-    parser.add_argument("--model", type=str, default="esm1v", choices={"esm1b", "esm6", "esm12", "esm34", "esm1v"}, help="which model to use")
+    parser.add_argument("--model", type=str, default="esm1v", choices={"esm1b", "esm6", "esm12", "esm34", "esm1v"}, help="Which model to use.")
 
     args = parser.parse_args()
 

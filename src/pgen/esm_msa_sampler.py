@@ -236,6 +236,9 @@ class ESM_MSA_sampler():
         # Inspired by and borrowing code from:
         # https://github.com/facebookresearch/esm/blob/master/variant-prediction/predict.py
 
+        if mask_entire_sequence and not with_masking:
+            raise ValueError("you can't have mask_entire_sequence = True, and with_masking = False, it just doesn't make any sense!")
+
         n_batches = len(msa_list)
         log_likelihood_sum = [0 for _ in range(n_batches)]
 
