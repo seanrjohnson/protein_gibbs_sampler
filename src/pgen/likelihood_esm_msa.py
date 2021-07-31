@@ -10,15 +10,13 @@ model_map = {"esm_msa1": models.ESM_MSA1}
 
 # TODO: option to average across multiple
 
-def main(input_h, output_h, masking_off, device, model, mask_entire_sequence, reference_msa_path, delete_insertions, batch_size, subset_strategy, alignment_size):
+def main(input_h, output_h, masking_off, sampler, mask_entire_sequence, reference_msa_handle, delete_insertions, batch_size, subset_strategy, alignment_size, subset_random_seed=None):
     clean_flag = 'upper'
     if delete_insertions:
         clean_flag = 'delete'
 
-    sampler = ESM_MSA_sampler(model_map[model](), device=device)
-
     in_seqs = list(zip(*parse_fasta(input_h, return_names=True, clean=clean_flag)))
-    reference_msa = parse_fasta(reference_msa_path, clean=clean_flag)
+    reference_msa = parse_fasta(reference_msa_handle, clean=clean_flag)
 
     tmp_seq_list = list()
     tmp_name_list = list()
@@ -27,7 +25,9 @@ def main(input_h, output_h, masking_off, device, model, mask_entire_sequence, re
         tmp_seq_list.append(seq)
         tmp_name_list.append(name)
         if len(tmp_seq_list) == batch_size or i+1 == len(in_seqs):
-            batch_msa = SequenceSubsetter.subset(reference_msa, alignment_size, strategy=subset_strategy)
+            batch_msa = SequenceSubsetter.subset(reference_msa, alignment_size, strategy=subset_strategy, random_seed=subset_random_seed)
+            if subset_random_seed is not None:
+                subset_random_seed += 1000000
             
             scores = sampler.log_likelihood_batch([batch_msa.copy() + [s] for s in tmp_seq_list], with_masking=not masking_off, mask_entire_sequence=mask_entire_sequence)
             for j in range(len(scores)):
@@ -58,6 +58,7 @@ if __name__ == "__main__":
                         help="which model to use.")
     parser.add_argument("--batch_size", type=int, default=1, choices={1,}, help="Batch size for sampling (msa instances per iteration).")
     parser.add_argument("--subset_strategy", default="random", choices=SequenceSubsetter.subset_strategies, help="How to subset the reference alignment to get it to the desired size.")
+    parser.add_argument("--subset_random_seed", default=None, type=int, help="Seed to start the random batch subsetter at. The seed will increment by 1000000 after each draw.")
 
     args = parser.parse_args()
 
@@ -71,8 +72,12 @@ if __name__ == "__main__":
     else:
         output_handle = sys.stdout
 
-    main(input_handle, output_handle, args.masking_off, args.device, args.model, args.mask_entire_sequence, args.reference_msa, args.delete_insertions, args.batch_size, args.subset_strategy, args.alignment_size)
+    reference_msa_handle = open(args.reference_msa, "r")
+    
+    sampler = ESM_MSA_sampler(model_map[args.model](), device=args.device)
+    main(input_handle, output_handle, args.masking_off, args.model, args.mask_entire_sequence, reference_msa_handle, args.delete_insertions, args.batch_size, args.subset_strategy, args.alignment_size, args.subset_random_seed)
 
+    reference_msa_handle.close()
     if args.i is not None:
         input_handle.close()
     if args.o is not None:

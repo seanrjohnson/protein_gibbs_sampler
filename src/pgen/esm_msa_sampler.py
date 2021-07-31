@@ -241,14 +241,14 @@ class ESM_MSA_sampler():
 
         n_batches = len(msa_list)
         log_likelihood_sum = [0 for _ in range(n_batches)]
-
-        batch = [[(idx, self.clean_seed_seq(seq)) for idx, seq in msa] for msa in msa_list]
+        print(msa_list)
+        batch = [[(str(idx), self.clean_seed_seq(seq)) for idx, seq in enumerate(msa)] for msa in msa_list]
         _, _, tokens = self.model.batch_converter(batch)
 
         range_start = 1 if self.model.alphabet.prepend_bos else 0
         end_modifier = -1 if self.model.alphabet.append_eos else 0
 
-        msa_seq_lengths = [len(msa[0][1]) for msa in msa_list]
+        msa_seq_lengths = [len(msa[0]) for msa in msa_list]
         batch_range_end = [seq_len + range_start + end_modifier for seq_len in msa_seq_lengths]
         overall_range_end = tokens.shape[2] + end_modifier
 
