@@ -56,7 +56,7 @@ if __name__ == "__main__":
     
     parser.add_argument("--model", type=str, default="esm_msa1", choices={"esm_msa1"},
                         help="which model to use.")
-    parser.add_argument("--batch_size", type=int, default=1, choices={1,}, help="Batch size for sampling (msa instances per iteration).")
+    parser.add_argument("--batch_size", type=int, default=1, help="Batch size for sampling (msa instances per iteration).")
     parser.add_argument("--subset_strategy", default="random", choices=SequenceSubsetter.subset_strategies, help="How to subset the reference alignment to get it to the desired size.")
     parser.add_argument("--subset_random_seed", default=None, type=int, help="Seed to start the random batch subsetter at. The seed will increment by 1000000 after each draw.")
 
