@@ -241,7 +241,7 @@ class ESM_MSA_sampler():
 
         n_batches = len(msa_list)
         log_likelihood_sum = [0 for _ in range(n_batches)]
-        print(msa_list)
+
         batch = [[(str(idx), self.clean_seed_seq(seq)) for idx, seq in enumerate(msa)] for msa in msa_list]
         _, _, tokens = self.model.batch_converter(batch)
 
