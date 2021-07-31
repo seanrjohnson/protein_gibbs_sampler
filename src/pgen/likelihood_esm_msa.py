@@ -75,7 +75,7 @@ if __name__ == "__main__":
     reference_msa_handle = open(args.reference_msa, "r")
     
     sampler = ESM_MSA_sampler(model_map[args.model](), device=args.device)
-    main(input_handle, output_handle, args.masking_off, args.model, args.mask_entire_sequence, reference_msa_handle, args.delete_insertions, args.batch_size, args.subset_strategy, args.alignment_size, args.subset_random_seed)
+    main(input_handle, output_handle, args.masking_off, sampler, args.mask_entire_sequence, reference_msa_handle, args.delete_insertions, args.batch_size, args.subset_strategy, args.alignment_size, args.subset_random_seed)
 
     reference_msa_handle.close()
     if args.i is not None:
