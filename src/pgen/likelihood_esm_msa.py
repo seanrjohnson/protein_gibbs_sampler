@@ -10,7 +10,7 @@ model_map = {"esm_msa1": models.ESM_MSA1}
 
 # TODO: option to average across multiple
 
-def main(input_h, output_h, masking_off, sampler, mask_entire_sequence, reference_msa_handle, delete_insertions, batch_size, subset_strategy, alignment_size, subset_random_seed=None):
+def main(input_h, output_h, masking_off, sampler, mask_entire_sequence, reference_msa_handle, delete_insertions, batch_size, subset_strategy, alignment_size, subset_random_seed=None, redraw=False):
     clean_flag = 'upper'
     if delete_insertions:
         clean_flag = 'delete'
@@ -18,22 +18,31 @@ def main(input_h, output_h, masking_off, sampler, mask_entire_sequence, referenc
     in_seqs = list(zip(*parse_fasta(input_h, return_names=True, clean=clean_flag)))
     reference_msa = parse_fasta(reference_msa_handle, clean=clean_flag)
 
-    tmp_seq_list = list()
+    # tmp_seq_list = list()
     tmp_name_list = list()
+    tmp_msa_list = list()
+
+    seq_msa = SequenceSubsetter.subset(reference_msa, alignment_size, strategy=subset_strategy, random_seed=subset_random_seed)
+
+
     for i in tqdm.trange(len(in_seqs)):
         name, seq = in_seqs[i]
-        tmp_seq_list.append(seq)
         tmp_name_list.append(name)
-        if len(tmp_seq_list) == batch_size or i+1 == len(in_seqs):
-            batch_msa = SequenceSubsetter.subset(reference_msa, alignment_size, strategy=subset_strategy, random_seed=subset_random_seed)
+
+        if redraw:
+            seq_msa = SequenceSubsetter.subset(reference_msa, alignment_size, strategy=subset_strategy, random_seed=subset_random_seed)
             if subset_random_seed is not None:
                 subset_random_seed += 1000000
+
+        tmp_msa_list.append(seq_msa.copy() + [seq])            
+
+        if len(tmp_msa_list) == batch_size or i+1 == len(in_seqs):
             
-            scores = sampler.log_likelihood_batch([batch_msa.copy() + [s] for s in tmp_seq_list], with_masking=not masking_off, mask_entire_sequence=mask_entire_sequence)
+            scores = sampler.log_likelihood_batch(tmp_msa_list, with_masking=not masking_off, mask_entire_sequence=mask_entire_sequence)
             for j in range(len(scores)):
                 print(f"{tmp_name_list[j]}\t{scores[j]}", file=output_h)
             output_h.flush()
-            tmp_seq_list = list()
+            tmp_msa_list = list()
             tmp_name_list = list()
         
  
@@ -59,8 +68,12 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=1, help="Batch size for sampling (msa instances per iteration).")
     parser.add_argument("--subset_strategy", default="random", choices=SequenceSubsetter.subset_strategies, help="How to subset the reference alignment to get it to the desired size.")
     parser.add_argument("--subset_random_seed", default=None, type=int, help="Seed to start the random batch subsetter at. The seed will increment by 1000000 after each draw.")
+    parser.add_argument("--redraw", action='store_true', default=False, help="If subset_strategy is random, by default a single random draw will be used for all calculations. If redraw is set, then a new random draw of reference sequences will be done for each target sequence.")
 
     args = parser.parse_args()
+
+    if args.redraw and args.subset_strategy != 'random':
+        raise ValueError(f"redraw is set, but subset_strategy is not 'random', so all the draws will be the same. That's probably not what you're trying to do.")
 
     if args.i is not None:
         input_handle = open(args.i, "r")
@@ -75,7 +88,7 @@ if __name__ == "__main__":
     reference_msa_handle = open(args.reference_msa, "r")
     
     sampler = ESM_MSA_sampler(model_map[args.model](), device=args.device)
-    main(input_handle, output_handle, args.masking_off, sampler, args.mask_entire_sequence, reference_msa_handle, args.delete_insertions, args.batch_size, args.subset_strategy, args.alignment_size, args.subset_random_seed)
+    main(input_handle, output_handle, args.masking_off, sampler, args.mask_entire_sequence, reference_msa_handle, args.delete_insertions, args.batch_size, args.subset_strategy, args.alignment_size, args.subset_random_seed, args.redraw)
 
     reference_msa_handle.close()
     if args.i is not None:
