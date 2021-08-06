@@ -33,6 +33,11 @@ Test the install
 pytest .
 ```
 
+If you want to run esm-msa metrics on sequences that are not aligned to the reference alignment, you will also need muscle
+```bash
+conda install -c bioconda muscle
+```
+
 If you have CUDA installed, everything should pass, otherwise there will be one skipped test.
 
 Running the tests for the first time might take a while because model weights need to be downloaded.
