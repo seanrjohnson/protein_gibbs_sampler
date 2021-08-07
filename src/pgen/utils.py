@@ -14,6 +14,7 @@ import random
 import argparse
 import tempfile
 import os
+import sys
 
 logger = logging.getLogger(__name__)
 
@@ -318,7 +319,14 @@ def add_to_msa(msa, new_seq):
         muscle_results = subprocess.run(["muscle", "-profile", "-in1", out1_name, "-in2", out2_name], capture_output=True, encoding="utf-8")
         names, seqs = parse_fasta_string(muscle_results.stdout, True)
         #https://www.geeksforgeeks.org/python-move-element-to-end-of-the-list/
-        seqs.append(seqs.pop(names.index(new_seq_name)))
+        try:
+            seqs.append(seqs.pop(names.index(new_seq_name)))
+        except ValueError as error:
+            print(error, file=sys.stderr)
+            print(f"{names}", file=sys.stderr)
+            print(muscle_results.stdout, file=sys.stderr)
+            print(muscle_results.stderr, file=sys.stderr)
+            raise error
 
     return seqs
 
