@@ -272,7 +272,6 @@ def test_likelihood_batch_without_masking(msa_sampler, msa_batch_example):
     assert result[1] == pytest.approx(-0.1334836632013321)
 
 
-# this is weird it does so much better, something is probably wrong??
 def test_likelihood_batch_with_individual_masking(msa_sampler, msa_batch_example):
     result = msa_sampler.log_likelihood_batch(msa_batch_example, target_index=4, with_masking=True,
                                         mask_entire_sequence=False)
@@ -301,6 +300,27 @@ def test_likelihood_executable_no_mask(msa_sampler, msa_batch_example, input_ind
     output_handle = StringIO()
     likelihood_esm_msa.main(input_handle, output_handle, masking_off=mask_off, sampler=msa_sampler, mask_entire_sequence=mask_entire_sequence, 
         reference_msa_handle=alignment_handle, delete_insertions=False, batch_size=1, subset_strategy="in_order",alignment_size=4)
+    output_handle.seek(0)
+    out_n, out_v = output_handle.readline().split()
+    out_v = float(out_v)
+    assert out_n == input_name
+    assert out_v == pytest.approx(expected)
+
+
+@pytest.mark.parametrize("input_index,input_name,expected,mask_off,mask_entire_sequence", [(0, "0", -0.06248655170202255, True, False), 
+(1, "0", -0.1334836632013321, True, False),
+(0, "0", -0.738074004650116, False, False), (1, "0", -0.876354455947876, False, False),
+(0, "0", -2.3227384090423584, False, True), (1, "0", -2.8657891750335693, False, True),
+])
+def test_likelihood_executable_realign(msa_sampler, msa_batch_example, input_index, input_name, expected, mask_off, mask_entire_sequence):
+    reference_sequence = f">{input_name}\n{msa_batch_example[input_index][-1]}\n"
+    input_handle = StringIO(reference_sequence)
+    msa_string = "\n".join([f">{n}\n{s}" for n,s in enumerate(msa_batch_example[input_index][:-1]) ]) + "\n"
+    alignment_handle = StringIO(msa_string)
+
+    output_handle = StringIO()
+    likelihood_esm_msa.main(input_handle, output_handle, masking_off=mask_off, sampler=msa_sampler, mask_entire_sequence=mask_entire_sequence, 
+        reference_msa_handle=alignment_handle, delete_insertions=False, batch_size=1, subset_strategy="in_order",alignment_size=4, unaligned_queries=True)
     output_handle.seek(0)
     out_n, out_v = output_handle.readline().split()
     out_v = float(out_v)

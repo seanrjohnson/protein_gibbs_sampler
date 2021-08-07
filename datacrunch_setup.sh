@@ -27,6 +27,7 @@ make run
 
 # then you can ssh in to the node 
 # make shell
+# conda install -c bioconda -y muscle
 # pip install -e .
 # then start the server.
 # jupyter lab --no-browser --ip=0.0.0.0 --allow-root

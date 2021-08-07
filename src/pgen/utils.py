@@ -12,7 +12,8 @@ import numpy as np
 import string
 import random
 import argparse
-
+import tempfile
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -290,6 +291,37 @@ def parse_fasta(filename, return_names=False, clean=None, full_name=False):
         return out_names, out_seqs
     else:
         return out_seqs
+
+
+def add_to_msa(msa, new_seq):
+    """
+        calls muscle to append a new sequence to the end of an msa.
+
+        Input:
+            msa: a list of protein sequence strings, each of the same length.
+
+            new_seq: a protein sequence string.
+
+        output:
+            out_msa: a list of protein sequence strings. The new sequence will be at the end of the list.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        out1_name = os.path.join(tmp, 'out1.fasta')
+        out2_name = os.path.join(tmp, 'out2.fasta')
+        
+        new_seq_name = "new_seq"
+
+        write_sequential_fasta(out1_name, msa)
+        with open(out2_name,"w") as out2:
+            print(f">{new_seq_name}\n{new_seq}", file=out2)
+        
+        muscle_results = subprocess.run(["muscle", "-profile", "-in1", out1_name, "-in2", out2_name], capture_output=True, encoding="utf-8")
+        names, seqs = parse_fasta_string(muscle_results.stdout, True)
+        #https://www.geeksforgeeks.org/python-move-element-to-end-of-the-list/
+        seqs.append(seqs.pop(names.index(new_seq_name)))
+
+    return seqs
+
 
 def parse_fasta_string(fasta_string, return_names=False): 
     """
