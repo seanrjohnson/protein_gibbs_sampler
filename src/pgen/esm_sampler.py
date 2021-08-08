@@ -292,13 +292,13 @@ class ESM_sampler():
         range_start = 1 if self.model.alphabet.prepend_bos else 0
         end_modifier = -1 if self.model.alphabet.append_eos else 0
 
-        batch_range_end = [len(seq) + range_start + end_modifier for seq in seq_list]
+        batch_range_end = [len(seq) + range_start for seq in seq_list]
         overall_range_end = tokens.shape[1] + end_modifier
 
-
+        
         assert max(len(seq) for seq in seq_list) == len(range(range_start, overall_range_end))
         for b_idx in range(n_batches):
-            assert len(seq_list[b_idx]) == len(range(range_start, batch_range_end[b_idx])), b_idx
+            assert len(seq_list[b_idx]) == len(range(range_start, batch_range_end[b_idx]))
 
         tokens = tokens.cuda() if self.cuda else tokens
         with torch.no_grad():
