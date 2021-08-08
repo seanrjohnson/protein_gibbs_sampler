@@ -2,7 +2,7 @@ import argparse
 import textwrap
 from pgen.esm_sampler import ESM_sampler
 from pgen import models
-from pgen.utils import parse_fasta, RawAndDefaultsFormatter
+from pgen.utils import parse_fasta, RawAndDefaultsFormatter, unalign
 from pathlib import Path
 import sys
 import tqdm
@@ -15,7 +15,7 @@ def main(input_h, output_h, masking_off, device, model, batch_size):
 
     sampler = ESM_sampler(model_map[model](),device=device)
     
-    in_seqs = list(zip(*parse_fasta(input_h, return_names=True)))
+    in_seqs = list(zip(*parse_fasta(input_h, return_names=True, clean="unalign")))
 
     tmp_seq_list = list()
     tmp_name_list = list()
@@ -42,7 +42,7 @@ if __name__ == "__main__":
     """), 
             formatter_class=RawAndDefaultsFormatter)
     parser.add_argument("-o", type=str, default=None, help="")
-    parser.add_argument("-i", default=None, help="A fasta file with sequences to calculate log likelihood for")
+    parser.add_argument("-i", default=None, help="A fasta file with sequences to calculate log likelihood for. Any gaps or stop codons will be removed before running the ")
     parser.add_argument("--batch_size", default=1, help="How many sequences to batch together.")
     parser.add_argument("--device", type=str, default="cpu", choices={"cpu","gpu"}, help="cpu or gpu")
     parser.add_argument("--masking_off", action="store_true", default=False, help="If set, no masking is done.")
