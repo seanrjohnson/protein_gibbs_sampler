@@ -3,7 +3,7 @@ from os.path import basename, splitext
 from setuptools import setup, find_packages
 # from distutils.core import setup, find_packages
 
-requirements = ['torch~=1.8.0', 'fair-esm~=0.4.0', 'pytest', 'tqdm']
+requirements = ['torch~=1.9.0', 'fair-esm~=0.4.0', 'pytest', 'tqdm']
 setup(
     name="pgen",
     version="0.2.1",
@@ -13,7 +13,7 @@ setup(
     license="MIT",
     packages=find_packages('src'),
     package_dir={'': 'src'},
-    scripts=["src/pgen/pgen_esm.py", "src/pgen/pgen_msa.py", "src/pgen/pgen_esm_from_fasta.py", "src/pgen/likelihood_esm.py", "src/pgen/likelihood_esm_msa.py"],
+    scripts=["src/pgen/pgen_esm.py", "src/pgen/pgen_msa.py", "src/pgen/pgen_esm_from_fasta.py", "src/pgen/likelihood_esm.py", "src/pgen/likelihood_esm_msa.py" , "src/pgen/clean_fasta.py"],
     # py_modules=[splitext(basename(path))[0] for path in glob('src/pgen/*.py')],
     install_requires=requirements,
     include_package_data=True,
