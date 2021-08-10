@@ -15,7 +15,7 @@ model_map = {"esm_msa1": models.ESM_MSA1}
 
 
 
-def main(input_h, output_h, masking_off, sampler, mask_entire_sequence, reference_msa_handle, delete_insertions, batch_size, subset_strategy, alignment_size, subset_random_seed=None, redraw=False, unaligned_queries=False):
+def main(input_h, output_h, masking_off, sampler, mask_entire_sequence, reference_msa_handle, delete_insertions, batch_size, subset_strategy, alignment_size, subset_random_seed=None, redraw=False, unaligned_queries=False, count_gaps=False):
     clean_flag = 'upper'
     if delete_insertions:
         clean_flag = 'delete'
@@ -46,7 +46,7 @@ def main(input_h, output_h, masking_off, sampler, mask_entire_sequence, referenc
 
         if len(tmp_msa_list) == batch_size or i+1 == len(in_seqs):
             
-            scores = sampler.log_likelihood_batch(tmp_msa_list, with_masking=not masking_off, mask_entire_sequence=mask_entire_sequence)
+            scores = sampler.log_likelihood_batch(tmp_msa_list, with_masking=not masking_off, mask_entire_sequence=mask_entire_sequence, count_gaps=count_gaps)
             for j in range(len(scores)):
                 print(f"{tmp_name_list[j]}\t{scores[j]}", file=output_h)
             output_h.flush()
@@ -78,6 +78,8 @@ if __name__ == "__main__":
     parser.add_argument("--subset_random_seed", default=None, type=int, help="Seed to start the random batch subsetter at. The seed will increment by 1000000 after each draw.")
     parser.add_argument("--redraw", action='store_true', default=False, help="If subset_strategy is random, by default a single random draw will be used for all calculations. If redraw is set, then a new random draw of reference sequences will be done for each target sequence.")
     parser.add_argument("--unaligned_queries",  action='store_true', default=False, help="If the input sequences are unaligned or come from a different alignment than the reference msa, then use muscle profile to add each sequence to the reference alignment.")
+    parser.add_argument("--count_gaps",  action='store_true', default=False, help="If true then average the log likelihoods over the coding positions as well as the gap positions. By default, gap positions are not considered in the sums and averages.")
+
     #TODO: re-align everything, to allow for the reference msa to start unaligned or to eliminate gap-only columns in msa subsets. In other words, add an "unaligned_references" option.
 
     args = parser.parse_args()
@@ -98,7 +100,7 @@ if __name__ == "__main__":
     reference_msa_handle = open(args.reference_msa, "r")
     
     sampler = ESM_MSA_sampler(model_map[args.model](), device=args.device)
-    main(input_handle, output_handle, args.masking_off, sampler, args.mask_entire_sequence, reference_msa_handle, args.delete_insertions, args.batch_size, args.subset_strategy, args.alignment_size, args.subset_random_seed, args.redraw, args.unaligned_queries)
+    main(input_handle, output_handle, args.masking_off, sampler, args.mask_entire_sequence, reference_msa_handle, args.delete_insertions, args.batch_size, args.subset_strategy, args.alignment_size, args.subset_random_seed, args.redraw, args.unaligned_queries, args.count_gaps)
 
     reference_msa_handle.close()
     if args.i is not None:

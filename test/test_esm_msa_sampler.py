@@ -2,10 +2,9 @@ import pytest
 from pgen import models, esm_msa_sampler
 from pgen import likelihood_esm_msa
 from io import StringIO
-
-####### Fixtures #######
 from pgen.esm_msa_sampler import ESM_MSA_ALLOWED_AMINO_ACIDS
 
+####### Fixtures #######
 
 @pytest.fixture(scope="session")
 def esm_msa():
@@ -344,3 +343,18 @@ def test_likelihood_executable_realign(msa_sampler):
     assert unaligned_out_n == query_name
 
     assert unaligned_out_v == pytest.approx(aligned_out_v)
+
+#maybe also not a great test?
+def test_log_likelihood_count_gaps(msa_sampler):
+    input_aln = [
+     'RINVMEK-',
+     'IAEQRQRE',
+     'GQEFNNRF',
+     'FKKQTNQH',
+     'Q-------']
+
+    no_gaps = msa_sampler.log_likelihood(input_aln, target_index=4, with_masking=False, mask_entire_sequence=False, count_gaps=False)
+    gaps = msa_sampler.log_likelihood(input_aln, target_index=4, with_masking=False, mask_entire_sequence=False, count_gaps=True)
+    
+    # adding gaps to the calculation should increase the score because they should be pretty predictable from the neighboring gaps.
+    assert no_gaps < gaps

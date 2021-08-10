@@ -5,6 +5,7 @@ from tqdm import trange
 from pgen.esm_sampler import generate_step
 
 ESM_MSA_ALLOWED_AMINO_ACIDS = "-ACDEFGHIKLMNPQRSTVWY"
+ESM_MSA_GAP_CHARACTERS = "-"  # there might be some reason to add "." to both of these constants some day.
 
 class ESM_MSA_sampler():
     """adapted from bert-gen bert-babble.ipynb"""
@@ -219,19 +220,20 @@ class ESM_MSA_sampler():
         return indexes, last_i
 
     def log_likelihood(self, msa, target_index=-1, with_masking=True, verbose=False,
-                       mask_entire_sequence=False):
+                       mask_entire_sequence=False, count_gaps=False):
         """
             msa: a list of protein sequence strings, each of the same length.
             target_index: the sequence in the msa to mask
             with_masking: if True, then iterate over the sequence masking one position at a time and summing the log likelihoods of the correct choice at the masked positions.
                         if False, then run the model just once, on the unmasked sequence.
             mask_entire_sequence: if True, mask entire sequence instead of iterating over each position
+            count_gaps: if True, then likelihoods for positions that are gaps in the target sequence will not be included in the averaging.
 
         """
-        return self.log_likelihood_batch([msa], target_index, with_masking, verbose, mask_entire_sequence)[0]
+        return self.log_likelihood_batch([msa], target_index, with_masking, verbose, mask_entire_sequence, count_gaps)[0]
 
     def log_likelihood_batch(self, msa_list, target_index=-1, with_masking=True, verbose=False,
-                       mask_entire_sequence=False):
+                       mask_entire_sequence=False, count_gaps=False):
 
         # Inspired by and borrowing code from:
         # https://github.com/facebookresearch/esm/blob/master/variant-prediction/predict.py
@@ -239,6 +241,7 @@ class ESM_MSA_sampler():
         if mask_entire_sequence and not with_masking:
             raise ValueError("you can't have mask_entire_sequence = True, and with_masking = False, it just doesn't make any sense!")
 
+        gap_tokens = {self.model.alphabet.get_idx(x) for x in ESM_MSA_GAP_CHARACTERS}
         n_batches = len(msa_list)
         log_likelihood_sum = [0 for _ in range(n_batches)]
 
@@ -249,6 +252,15 @@ class ESM_MSA_sampler():
         end_modifier = -1 if self.model.alphabet.append_eos else 0
 
         msa_seq_lengths = [len(msa[0]) for msa in msa_list]
+        msa_denominator = msa_seq_lengths.copy() #seq_len if counting gaps, non-gapped length of target sequence if not counting gaps
+
+        if not count_gaps:
+            for i in range(len(msa_list)):
+                for g in ESM_MSA_GAP_CHARACTERS:
+                    msa_denominator[i] -= msa_list[i][target_index].count(g)
+
+                
+
         batch_range_end = [seq_len + range_start + end_modifier for seq_len in msa_seq_lengths]
         overall_range_end = tokens.shape[2] + end_modifier
 
@@ -270,8 +282,10 @@ class ESM_MSA_sampler():
 
                 for b_idx in range(n_batches):
                     for idx in range(range_start, batch_range_end[b_idx]):
-                        log_likelihood_sum[b_idx] += token_probs[b_idx, target_index, idx, original_tokens[b_idx, idx].item()]
-                        tokens[b_idx, target_index, idx] = original_tokens[b_idx, idx]
+                        if count_gaps or original_tokens[b_idx, idx] not in gap_tokens: # only add the likelihood to the running sum if we are counting gaps, or if the position does not contain a gap.
+                            log_likelihood_sum[b_idx] += token_probs[b_idx, target_index, idx, original_tokens[b_idx, idx].item()]
+                        
+                        #tokens[b_idx, target_index, idx] = original_tokens[b_idx, idx].item() # this probably doesn't matter?
 
             elif with_masking:
                 for idx in range(range_start, overall_range_end):
@@ -286,13 +300,15 @@ class ESM_MSA_sampler():
                             print(" ".join([f"{x}:{token_probs[batch_idx,target_index,idx,self.model.alphabet.tok_to_idx[x]]}" for x in self.model.alphabet.all_toks]))
 
                         if idx < batch_range_end[batch_idx]:
-                            log_likelihood_sum[batch_idx] += token_probs[batch_idx, target_index, idx, original_tokens[batch_idx].item()]
+                            if count_gaps or original_tokens[batch_idx].item() not in gap_tokens: # only add the likelihood to the running sum if we are counting gaps, or if the position does not contain a gap.
+                                log_likelihood_sum[batch_idx] += token_probs[batch_idx, target_index, idx, original_tokens[batch_idx].item()]
                         tokens[batch_idx, target_index, idx] = original_tokens[batch_idx].item()
 
             else:  # no masking, so we just need to calculate a single forward pass on the unmasked model
                 token_probs = torch.log_softmax(self.model.model(tokens)['logits'], dim=-1)
                 for b_idx in range(n_batches):
                     for idx in range(range_start, batch_range_end[b_idx]):
-                        log_likelihood_sum[b_idx] += token_probs[b_idx, target_index, idx, tokens[b_idx, target_index, idx].item()]
+                        if count_gaps or tokens[b_idx, target_index, idx].item() not in gap_tokens: # only add the likelihood to the running sum if we are counting gaps, or if the position does not contain a gap.
+                            log_likelihood_sum[b_idx] += token_probs[b_idx, target_index, idx, tokens[b_idx, target_index, idx].item()]
 
-        return [float(l_sum / msa_seq_lengths[idx]) for idx, l_sum in enumerate(log_likelihood_sum)]
+        return [float(l_sum / msa_denominator[idx]) for idx, l_sum in enumerate(log_likelihood_sum)]
