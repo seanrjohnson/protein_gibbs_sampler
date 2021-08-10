@@ -356,5 +356,19 @@ def test_log_likelihood_count_gaps(msa_sampler):
     no_gaps = msa_sampler.log_likelihood(input_aln, target_index=4, with_masking=False, mask_entire_sequence=False, count_gaps=False)
     gaps = msa_sampler.log_likelihood(input_aln, target_index=4, with_masking=False, mask_entire_sequence=False, count_gaps=True)
     
-    # adding gaps to the calculation should increase the score because they should be pretty predictable from the neighboring gaps.
+    # adding gaps to the calculation should improve (make closer to zero) the score because they should be pretty predictable from the neighboring gaps.
     assert no_gaps < gaps
+
+def test_log_likelihood_count_gaps_2(msa_sampler):
+    input_aln = [
+     'RINVMEKH',
+     'IAEQRQRE',
+     'GQEFNNRF',
+     'FKKQTNQH',
+     'QQQ-Q-QQ']
+
+    no_gaps = msa_sampler.log_likelihood(input_aln, target_index=4, with_masking=False, mask_entire_sequence=False, count_gaps=False)
+    gaps = msa_sampler.log_likelihood(input_aln, target_index=4, with_masking=False, mask_entire_sequence=False, count_gaps=True)
+    
+    # removing the gap should improve the score, because the Qs should be predicted from the neighbor Qs, and the gaps will not be as much.
+    assert no_gaps > gaps
