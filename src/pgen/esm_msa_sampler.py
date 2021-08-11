@@ -284,17 +284,13 @@ class ESM_MSA_sampler():
                         if count_gaps or original_tokens[b_idx, idx].item() not in gap_tokens: # only add the likelihood to the running sum if we are counting gaps, or if the position does not contain a gap.
                             log_likelihood_sum[b_idx] += token_probs[b_idx, target_index, idx, original_tokens[b_idx, idx].item()]
 
-                return [float(l_sum / msa_denominator[idx]) for idx, l_sum in enumerate(log_likelihood_sum)]
-
             elif with_masking:
-                results = []
                 for b_idx in range(n_batches):
-                    likelihood_sum = 0
                     original_batch = batch[b_idx]
                     original_string = original_batch[target_index][1]
                     new_batch = []
 
-                    SUB_BATCH_SIZE = 30
+                    SUB_BATCH_SIZE = 100
 
                     for _ in range(len(original_string)):
                         sub_batch_list = original_batch.copy()
@@ -317,8 +313,6 @@ class ESM_MSA_sampler():
 
                         for idx in range(loop_adjusted_start, loop_adjusted_end):
                             if count_gaps or original_tokens[b_idx, idx].item() not in gap_tokens: # only add the likelihood to the running sum if we are counting gaps, or if the position does not contain a gap.
-                                likelihood_sum += token_probs[idx-loop_adjusted_start, target_index, idx, original_tokens[b_idx, idx].item()]
+                                log_likelihood_sum[b_idx] += token_probs[idx-loop_adjusted_start, target_index, idx, original_tokens[b_idx, idx].item()]
 
-                    results.append(float(likelihood_sum / msa_denominator[b_idx]))
-
-                return results
+        return [float(l_sum / msa_denominator[idx]) for idx, l_sum in enumerate(log_likelihood_sum)]
