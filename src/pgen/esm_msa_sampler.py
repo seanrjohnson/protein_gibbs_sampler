@@ -293,20 +293,32 @@ class ESM_MSA_sampler():
                     original_batch = batch[b_idx]
                     original_string = original_batch[target_index][1]
                     new_batch = []
+
+                    SUB_BATCH_SIZE = 30
+
                     for _ in range(len(original_string)):
                         sub_batch_list = original_batch.copy()
                         sub_batch_list[target_index] = (str(target_index), original_string)
                         new_batch.append(sub_batch_list.copy())
 
-                    _, _, new_batch_tokens = self.model.batch_converter(new_batch)
-                    for idx in range(range_start, batch_range_end[b_idx]):
-                        new_batch_tokens[idx-range_start, target_index, idx] = self.model.alphabet.mask_idx
+                    n_loops = int(len(original_string) / SUB_BATCH_SIZE) + 1
+                    for loop in range(n_loops):
+                        loop_start = loop * SUB_BATCH_SIZE
+                        loop_end = (1+loop) * SUB_BATCH_SIZE
+                        _, _, new_batch_tokens = self.model.batch_converter(new_batch[loop_start:loop_end])
 
-                    token_probs = torch.log_softmax(self.model.model(new_batch_tokens)['logits'], dim=-1)
+                        loop_adjusted_start = range_start + loop_start
+                        loop_adjusted_end = min(batch_range_end[b_idx], loop_end + range_start)
 
-                    for idx in range(range_start, batch_range_end[b_idx]):
-                        if count_gaps or original_tokens[b_idx, idx].item() not in gap_tokens: # only add the likelihood to the running sum if we are counting gaps, or if the position does not contain a gap.
-                            likelihood_sum += token_probs[idx-range_start, target_index, idx, original_tokens[b_idx, idx].item()]
+                        for idx in range(loop_adjusted_start, loop_adjusted_end):
+                            new_batch_tokens[idx-loop_adjusted_start, target_index, idx] = self.model.alphabet.mask_idx
+
+                        token_probs = torch.log_softmax(self.model.model(new_batch_tokens)['logits'], dim=-1)
+
+                        for idx in range(loop_adjusted_start, loop_adjusted_end):
+                            if count_gaps or original_tokens[b_idx, idx].item() not in gap_tokens: # only add the likelihood to the running sum if we are counting gaps, or if the position does not contain a gap.
+                                likelihood_sum += token_probs[idx-loop_adjusted_start, target_index, idx, original_tokens[b_idx, idx].item()]
+
                     results.append(float(likelihood_sum / msa_denominator[b_idx]))
 
                 return results
