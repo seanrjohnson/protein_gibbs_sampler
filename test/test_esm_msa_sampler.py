@@ -255,13 +255,18 @@ def test_likelihood_with_individual_masking(msa_sampler, msa_batch_example):
         -0.876354455947876)
 
 
-#
-#
 def test_likelihood_with_masking_entire_sequence(msa_sampler, msa_batch_example):
     assert msa_sampler.log_likelihood(msa_batch_example[0], target_index=4, with_masking=True,
                                       mask_entire_sequence=True) == pytest.approx(-2.3227384090423584)
     assert msa_sampler.log_likelihood(msa_batch_example[1], target_index=4, with_masking=True,
                                       mask_entire_sequence=True) == pytest.approx(-2.8657891750335693)
+
+
+def test_likelihood_with_masking_entire_sequence_skip_gap(msa_sampler, msa_batch_example):
+    # The last one contributes -2.1356, of 28 characters.. so (-65.0367 - (-2.1356))/27
+    msa_batch_example[0][-1] = "MTSPDELAAARARIDELDARLVALLAE-"
+    assert msa_sampler.log_likelihood(msa_batch_example[0], target_index=4, with_masking=True,
+                                      mask_entire_sequence=True, count_gaps=False) == pytest.approx(-2.3296703)
 
 
 def test_likelihood_batch_without_masking(msa_sampler, msa_batch_example):
@@ -306,7 +311,7 @@ def test_likelihood_executable_no_mask(msa_sampler, msa_batch_example, input_ind
     assert out_v == pytest.approx(expected)
 
 
-#TODO: this is not a great test.
+# TODO: this is not a great test.
 def test_likelihood_executable_realign(msa_sampler):
     input_aln = [
      'AKDKG-LDINSAEKFFEALHSESIKHQINVMEK-',
@@ -324,13 +329,13 @@ def test_likelihood_executable_realign(msa_sampler):
     alignment_handle = StringIO(msa_string)
 
     aligned_output_handle = StringIO()
-    likelihood_esm_msa.main(aligned_input_handle, aligned_output_handle, masking_off=True, sampler=msa_sampler, mask_entire_sequence=False, 
+    likelihood_esm_msa.main(aligned_input_handle, aligned_output_handle, masking_off=True, sampler=msa_sampler, mask_entire_sequence=False,
         reference_msa_handle=alignment_handle, delete_insertions=False, batch_size=1, subset_strategy="in_order",alignment_size=4, unaligned_queries=False)
     aligned_output_handle.seek(0)
-    
+
     unaligned_output_handle = StringIO()
     alignment_handle.seek(0)
-    likelihood_esm_msa.main(unaligned_input_handle, unaligned_output_handle, masking_off=True, sampler=msa_sampler, mask_entire_sequence=False, 
+    likelihood_esm_msa.main(unaligned_input_handle, unaligned_output_handle, masking_off=True, sampler=msa_sampler, mask_entire_sequence=False,
         reference_msa_handle=alignment_handle, delete_insertions=False, batch_size=1, subset_strategy="in_order",alignment_size=4, unaligned_queries=True)
     unaligned_output_handle.seek(0)
 
@@ -344,7 +349,8 @@ def test_likelihood_executable_realign(msa_sampler):
 
     assert unaligned_out_v == pytest.approx(aligned_out_v)
 
-#maybe also not a great test?
+
+# maybe also not a great test?
 def test_log_likelihood_count_gaps(msa_sampler):
     input_aln = [
      'RINVMEK-',
@@ -358,6 +364,7 @@ def test_log_likelihood_count_gaps(msa_sampler):
     
     # adding gaps to the calculation should improve (make closer to zero) the score because they should be pretty predictable from the neighboring gaps.
     assert no_gaps < gaps
+
 
 def test_log_likelihood_count_gaps_2(msa_sampler):
     input_aln = [
