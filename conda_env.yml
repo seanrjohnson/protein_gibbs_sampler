@@ -1,0 +1,21 @@
+name: protein_gibbs_sampler
+channels:
+  - defaults
+  - bioconda
+  - conda-forge
+  - nvidia
+  - pytorch
+dependencies:
+  - python>=3.8
+  - muscle~=3.8.0
+  - biopython~=1.79
+  - tqdm~=4.62.0
+  - pytorch~=1.9.0
+  - cudatoolkit=11.1 
+  - pip
+  - pytest
+  - pytest-datadir
+  - pip:
+    - fair-esm~=0.4.0
+    - -e .
+
