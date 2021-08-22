@@ -290,10 +290,27 @@ def test_likelihood_batch_with_masking_entire_sequence(msa_sampler, msa_batch_ex
     assert result[1] == pytest.approx(-2.8657891750335693)
 
 
-@pytest.mark.parametrize("input_index,input_name,expected,mask_off,mask_entire_sequence", [(0, "0", -0.06248655170202255, True, False), 
-(1, "0", -0.1334836632013321, True, False),
-(0, "0", -0.738074004650116, False, False), (1, "0", -0.876354455947876, False, False),
-(0, "0", -2.3227384090423584, False, True), (1, "0", -2.8657891750335693, False, True),
+@pytest.mark.parametrize("mask_distance,expected", [(1, (-2.3227384090423584, -2.8657891750335693)),
+                                                    (2, (-0.809113621711731, -0.9949756264686584)),
+                                                    (5, (-0.7348969578742981, -0.883063554763794)),
+                                                    (10, (-0.7481335401535034, -0.9041081070899963)),
+                                                    (28, (-0.738074004650116, -0.9032351970672607)),  # input 1 is 28 chars
+                                                    (50, (-0.738074004650116, -0.876354455947876))  # input 2 is 44 chars
+                                                    ])
+def test_likelihood_batch_with_individual_masking_distance(msa_sampler, msa_batch_example, mask_distance, expected):
+    # This is essentially the same as masking the entire sequence, because we mask each position
+    result = msa_sampler.log_likelihood_batch(msa_batch_example, target_index=4, with_masking=True,
+                                        mask_entire_sequence=False, mask_distance=mask_distance)
+    print(result)
+    assert result[0] == pytest.approx(expected[0])
+    assert result[1] == pytest.approx(expected[1])
+
+
+@pytest.mark.parametrize("input_index,input_name,expected,mask_off,mask_entire_sequence", [
+    (0, "0", -0.06248655170202255, True, False),
+    (1, "0", -0.1334836632013321, True, False),
+    (0, "0", -0.738074004650116, False, False), (1, "0", -0.876354455947876, False, False),
+    (0, "0", -2.3227384090423584, False, True), (1, "0", -2.8657891750335693, False, True),
 ])
 def test_likelihood_executable_no_mask(msa_sampler, msa_batch_example, input_index, input_name, expected, mask_off, mask_entire_sequence):
     reference_sequence = f">{input_name}\n{msa_batch_example[input_index][-1]}\n"
@@ -302,7 +319,7 @@ def test_likelihood_executable_no_mask(msa_sampler, msa_batch_example, input_ind
     alignment_handle = StringIO(msa_string)
 
     output_handle = StringIO()
-    likelihood_esm_msa.main(input_handle, output_handle, masking_off=mask_off, sampler=msa_sampler, mask_entire_sequence=mask_entire_sequence, 
+    likelihood_esm_msa.main(input_handle, output_handle, masking_off=mask_off, sampler=msa_sampler, mask_entire_sequence=mask_entire_sequence,
         reference_msa_handle=alignment_handle, delete_insertions=False, batch_size=1, subset_strategy="in_order",alignment_size=4)
     output_handle.seek(0)
     out_n, out_v = output_handle.readline().split()
@@ -361,7 +378,7 @@ def test_log_likelihood_count_gaps(msa_sampler):
 
     no_gaps = msa_sampler.log_likelihood(input_aln, target_index=4, with_masking=False, mask_entire_sequence=False, count_gaps=False)
     gaps = msa_sampler.log_likelihood(input_aln, target_index=4, with_masking=False, mask_entire_sequence=False, count_gaps=True)
-    
+
     # adding gaps to the calculation should improve (make closer to zero) the score because they should be pretty predictable from the neighboring gaps.
     assert no_gaps < gaps
 
@@ -376,6 +393,6 @@ def test_log_likelihood_count_gaps_2(msa_sampler):
 
     no_gaps = msa_sampler.log_likelihood(input_aln, target_index=4, with_masking=False, mask_entire_sequence=False, count_gaps=False)
     gaps = msa_sampler.log_likelihood(input_aln, target_index=4, with_masking=False, mask_entire_sequence=False, count_gaps=True)
-    
+
     # removing the gap should improve the score, because the Qs should be predicted from the neighbor Qs, and the gaps will not be as much.
     assert no_gaps > gaps
