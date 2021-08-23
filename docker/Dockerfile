@@ -12,8 +12,8 @@ RUN apt-get update && apt-get upgrade -y && \
 ADD ../conda_env.yml /tmp
 #RUN pip install -r /tmp/requirements.txt
 
-RUN conda install -c conda-forge mamba
-RUN mamba env create -f /tmp/conda_env.yml
+RUN conda install -y -c conda-forge mamba
+RUN mamba env create -y -f /tmp/conda_env.yml
 
 
 # For jupyter lab

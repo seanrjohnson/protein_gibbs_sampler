@@ -22,7 +22,9 @@ git clone --branch esm1b_followup_random_batch https://github.com/seanrjohnson/p
 
 cd protein_gibbs_sampler
 
-conda create -f conda_env.yml
+conda activate base
+
+conda create -y -f conda_env.yml
 
 # then when you log on:
 # conda activate protein_gibbs_sampler
