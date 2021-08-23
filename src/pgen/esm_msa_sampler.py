@@ -283,7 +283,7 @@ class ESM_MSA_sampler():
         with torch.no_grad():
             original_tokens = tokens[:, target_index].clone().detach()
 
-            if (with_masking and mask_entire_sequence) or (not with_masking): #TODO: change so that it complies with batch_size. Right now it is written as if batch_size = n_msas.
+            if (with_masking and mask_entire_sequence) or (not with_masking):
                 if mask_entire_sequence:
                     for idx in range(range_start, overall_range_end):
                         tokens[:, target_index, idx] = self.model.alphabet.mask_idx
@@ -301,11 +301,9 @@ class ESM_MSA_sampler():
 
             elif with_masking:
                 results = []
-                print(f"batch {reformatted_msas} batch", file=sys.stderr)
                 for msa_idx in range(n_msas):
                     likelihood_sum = 0.0
                     original_msas = reformatted_msas[msa_idx] #is it possible to copy a slice from tokens?
-                    print(f"original batch {original_msas} original batch", file=sys.stderr)
                     original_string = original_msas[target_index][1]
                     all_samples_for_this_msa = []
 
