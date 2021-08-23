@@ -8,11 +8,13 @@ WORKDIR ${workspace}
 RUN apt-get update && apt-get upgrade -y && \
     apt-get install curl vim git -y
 
-ADD requirements.txt /tmp
-RUN pip install -r /tmp/requirements.txt
+#ADD requirements.txt /tmp
+ADD ../conda_env.yml /tmp
+#RUN pip install -r /tmp/requirements.txt
 
-RUN conda install -c bioconda hmmer
-RUN conda install -c bioconda mafft
+RUN conda install -c conda-forge mamba
+RUN mamba env create -f /tmp/conda_env.yml
+
 
 # For jupyter lab
 EXPOSE 8888

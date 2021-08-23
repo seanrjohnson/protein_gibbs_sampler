@@ -1,7 +1,8 @@
 #!make
 
 MAKEFILE_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
-DOCKER_IMAGE=massiekm/dl-pgen:latest
+#DOCKER_IMAGE=massiekm/dl-pgen:latest
+DOCKER_IMAGE=dl-pgen:latest
 CONTAINER_NAME=dl-pgen
 CONTAINER_WORKSPACE=/workspace
 
