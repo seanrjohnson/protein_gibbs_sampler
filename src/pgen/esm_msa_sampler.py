@@ -3,6 +3,7 @@ import math
 import random
 from tqdm import trange
 from pgen.esm_sampler import generate_step
+import sys
 
 ESM_MSA_ALLOWED_AMINO_ACIDS = "-ACDEFGHIKLMNPQRSTVWY"
 ESM_MSA_GAP_CHARACTERS = "-"  # there might be some reason to add "." to both of these constants some day.
@@ -220,7 +221,7 @@ class ESM_MSA_sampler():
         return indexes, last_i
 
     def log_likelihood(self, msa, target_index=-1, with_masking=True, verbose=False,
-                       mask_entire_sequence=False, count_gaps=False, mask_distance=100):
+                       mask_entire_sequence=False, count_gaps=False, mask_distance=float("inf")):
         """
             msa: a list of protein sequence strings, each of the same length.
             target_index: the sequence in the msa to mask
@@ -228,12 +229,17 @@ class ESM_MSA_sampler():
                         if False, then run the model just once, on the unmasked sequence.
             mask_entire_sequence: if True, mask entire sequence instead of iterating over each position
             count_gaps: if True, then likelihoods for positions that are gaps in the target sequence will not be included in the averaging.
-            mask_distance: For optimization, when masking individual positions, the distance between masked positions in the same execution
+            mask_distance: For optimization, when masking individual positions, the distance between masked positions in the same execution, by default only one position is masked per model call.
         """
         return self.log_likelihood_batch([msa], target_index, with_masking, verbose, mask_entire_sequence, count_gaps, mask_distance)[0]
 
     def log_likelihood_batch(self, msa_list, target_index=-1, with_masking=True, verbose=False,
-                       mask_entire_sequence=False, count_gaps=False, mask_distance=100):
+                       mask_entire_sequence=False, count_gaps=False, mask_distance=float("inf"), batch_size=None):
+        """
+            msa_list: a list of MSAs to calculate log_likelihood for.
+            batch_size: number of MSAs to run on the gpu at once, if None, then batch_size=len(msa_list). default=None.
+
+        """
 
         # Inspired by and borrowing code from:
         # https://github.com/facebookresearch/esm/blob/master/variant-prediction/predict.py
@@ -242,16 +248,18 @@ class ESM_MSA_sampler():
             raise ValueError("you can't have mask_entire_sequence = True, and with_masking = False, it just doesn't make any sense!")
 
         gap_tokens = {self.model.alphabet.get_idx(x) for x in ESM_MSA_GAP_CHARACTERS}
-        n_batches = len(msa_list)
-        log_likelihood_sum = [0 for _ in range(n_batches)]
+        n_msas = len(msa_list)
+        if batch_size is None:
+            batch_size = n_msas
+        log_likelihood_sum = [0.0 for _ in range(n_msas)]
 
-        batch = [[(str(idx), self.clean_seed_seq(seq)) for idx, seq in enumerate(msa)] for msa in msa_list]
-        _, _, tokens = self.model.batch_converter(batch)
+        reformatted_msas = [[(str(idx), self.clean_seed_seq(seq)) for idx, seq in enumerate(msa)] for msa in msa_list]
+        _, _, tokens = self.model.batch_converter(reformatted_msas)
 
         range_start = 1 if self.model.alphabet.prepend_bos else 0
         end_modifier = -1 if self.model.alphabet.append_eos else 0
 
-        msa_seq_lengths = [len(msa[0]) for msa in msa_list]
+        msa_seq_lengths = [len(msa[target_index]) for msa in msa_list]
         msa_denominator = msa_seq_lengths.copy() #seq_len if counting gaps, non-gapped length of target sequence if not counting gaps
 
         if not count_gaps:
@@ -259,71 +267,87 @@ class ESM_MSA_sampler():
                 for g in ESM_MSA_GAP_CHARACTERS:
                     msa_denominator[i] -= msa_list[i][target_index].count(g)
 
-        batch_range_end = [seq_len + range_start + end_modifier for seq_len in msa_seq_lengths]
+        msa_range_end = [seq_len + range_start + end_modifier for seq_len in msa_seq_lengths]
         overall_range_end = tokens.shape[2] + end_modifier
 
         assert max(msa_seq_lengths) == len(range(range_start, overall_range_end))
-        for b_idx in range(n_batches):
-            assert msa_seq_lengths[b_idx] == len(range(range_start, batch_range_end[b_idx])), b_idx
+        for msa_idx in range(n_msas):
+            assert msa_seq_lengths[msa_idx] == len(range(range_start, msa_range_end[msa_idx])), msa_idx
 
-        # batch shape: (batch, 2 (tuple), sequence_len)
-        # tokens shape: (batch, sequences, sequence_len, alphabet_digits)
+        # each msa is a sample. If you need to mask an msa multiple different ways, then each alternative masking is a sample.
+        # batch shape: (sample, 2 (tuple), sequence_len) 
+        # tokens shape: (sample, sequences, sequence_len) = alphabet_digit
         tokens = tokens.cuda() if self.cuda else tokens
+
+        #TODO: setting mask_distance = 1 is equivalent to setting mask_entire_sequence, so we can probably get rid of mask_entire_sequence.
         with torch.no_grad():
             original_tokens = tokens[:, target_index].clone().detach()
 
-            if (with_masking and mask_entire_sequence) or (not with_masking):
+            if (with_masking and mask_entire_sequence) or (not with_masking): #TODO: change so that it complies with batch_size. Right now it is written as if batch_size = n_msas.
                 if mask_entire_sequence:
                     for idx in range(range_start, overall_range_end):
                         tokens[:, target_index, idx] = self.model.alphabet.mask_idx
+                
+                for batch_start in range(0,tokens.shape[0], batch_size):
 
-                token_probs = torch.log_softmax(self.model.model(tokens)['logits'], dim=-1)
+                    token_probs = torch.log_softmax(self.model.model(tokens[batch_start:batch_start+batch_size,:,:])['logits'], dim=-1)
 
-                for b_idx in range(n_batches):
-                    for idx in range(range_start, batch_range_end[b_idx]):
-                        if count_gaps or original_tokens[b_idx, idx].item() not in gap_tokens: # only add the likelihood to the running sum if we are counting gaps, or if the position does not contain a gap.
-                            log_likelihood_sum[b_idx] += token_probs[b_idx, target_index, idx, original_tokens[b_idx, idx].item()]
+                    for i_sample in range(token_probs.shape[0]):
+                        for idx in range(range_start, msa_range_end[i_sample+batch_start]):
+                            if count_gaps or original_tokens[i_sample+batch_start, idx].item() not in gap_tokens: # only add the likelihood to the running sum if we are counting gaps, or if the position does not contain a gap.
+                                log_likelihood_sum[i_sample+batch_start] += token_probs[i_sample, target_index, idx, original_tokens[i_sample+batch_start, idx].item()]
 
                 return [float(l_sum / msa_denominator[idx]) for idx, l_sum in enumerate(log_likelihood_sum)]
 
             elif with_masking:
                 results = []
-                for b_idx in range(n_batches):
-                    likelihood_sum = 0
-                    original_batch = batch[b_idx]
-                    original_string = original_batch[target_index][1]
-                    new_batch = []
+                print(f"batch {reformatted_msas} batch", file=sys.stderr)
+                for msa_idx in range(n_msas):
+                    likelihood_sum = 0.0
+                    original_msas = reformatted_msas[msa_idx] #is it possible to copy a slice from tokens?
+                    print(f"original batch {original_msas} original batch", file=sys.stderr)
+                    original_string = original_msas[target_index][1]
+                    all_samples_for_this_msa = []
 
-                    n_msa_executions = min(mask_distance, len(original_string))
-                    for _ in range(n_msa_executions):
-                        sub_batch_list = original_batch.copy()
-                        sub_batch_list[target_index] = (str(target_index), original_string)
-                        new_batch.append(sub_batch_list.copy())
+                    num_samples_for_this_msa = min(mask_distance, len(original_string))
+                    for _ in range(num_samples_for_this_msa): #I think you can do this with a pytorch/numpy broadcast of a slice from tokens
+                        sample = original_msas.copy() 
+                        sample[target_index] = (str(target_index), original_string) # this doesn't seem necessary?
+                        all_samples_for_this_msa.append(sample.copy())
 
                     masked_idx = set()
-                    _, _, new_batch_tokens = self.model.batch_converter(new_batch)
-                    for idx_msa in range(n_msa_executions):
-                        for idx_pos in range(range_start, batch_range_end[b_idx]):
+                    _, _, all_samples_for_this_msa_tokens = self.model.batch_converter(all_samples_for_this_msa)
+                    # all_samples_for_this_msa_tokens = all_samples_for_this_msa_tokens.cuda() if self.cuda else all_samples_for_this_msa_tokens
+                    for i_sample in range(num_samples_for_this_msa):
+                        for idx_pos in range(range_start, msa_range_end[msa_idx]):
                             # TODO this could be more efficient
-                            if idx_pos % n_msa_executions == idx_msa:
-                                new_batch_tokens[idx_msa, target_index, idx_pos] = self.model.alphabet.mask_idx
+                            if idx_pos % num_samples_for_this_msa == i_sample:
+                                all_samples_for_this_msa_tokens[i_sample, target_index, idx_pos] = self.model.alphabet.mask_idx
                                 masked_idx.add(idx_pos)
-                    assert len(masked_idx) == msa_denominator[b_idx], sorted(masked_idx)
+                    assert len(masked_idx) == msa_denominator[msa_idx], sorted(masked_idx)
 
                     if verbose:
-                        print(new_batch_tokens[:, target_index])
-
-                    token_probs = torch.log_softmax(self.model.model(new_batch_tokens)['logits'], dim=-1)
+                        print(all_samples_for_this_msa_tokens[:, target_index])
 
                     counted_idx = set()
-                    for idx_msa in range(n_msa_executions):
-                        for idx_pos in range(range_start, batch_range_end[b_idx]):
-                            # TODO this could be more efficient
-                            if idx_pos % n_msa_executions == idx_msa:
-                                if count_gaps or original_tokens[b_idx, idx_pos].item() not in gap_tokens: # only add the likelihood to the running sum if we are counting gaps, or if the position does not contain a gap.
-                                    likelihood_sum += token_probs[idx_msa, target_index, idx_pos, original_tokens[b_idx, idx_pos].item()]
-                                    counted_idx.add(idx_pos)
-                    assert len(counted_idx) == msa_denominator[b_idx], sorted(counted_idx)
-                    results.append(float(likelihood_sum / msa_denominator[b_idx]))
+                    for batch_start in range(0,num_samples_for_this_msa, batch_size):
+
+                        # tokens shape: (sample, sequences, sequence_len)
+                        this_batch = all_samples_for_this_msa_tokens[batch_start:batch_start+batch_size,:,:]
+                        this_batch = this_batch.cuda() if self.cuda else this_batch
+                        token_probs = torch.log_softmax(self.model.model(this_batch)['logits'], dim=-1)
+
+                        
+                        for i_sample in range(token_probs.shape[0]):
+                            for idx_pos in range(range_start, msa_range_end[msa_idx]):
+                                # TODO this could be more efficient
+                                if idx_pos % num_samples_for_this_msa == (i_sample + batch_start):
+                                    if count_gaps or original_tokens[msa_idx, idx_pos].item() not in gap_tokens: # only add the likelihood to the running sum if we are counting gaps, or if the position does not contain a gap.
+                                        likelihood_sum += token_probs[i_sample, target_index, idx_pos, original_tokens[msa_idx, idx_pos].item()]
+                                        counted_idx.add(idx_pos)
+                    assert len(counted_idx) == msa_denominator[msa_idx], sorted(counted_idx)
+                        
+                    
+                    results.append(float(likelihood_sum / msa_denominator[msa_idx]))
 
                 return results
