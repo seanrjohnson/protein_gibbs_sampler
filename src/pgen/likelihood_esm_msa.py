@@ -15,7 +15,7 @@ model_map = {"esm_msa1": models.ESM_MSA1}
 
 
 
-def main(input_h, output_h, masking_off, sampler, mask_entire_sequence, reference_msa_handle, delete_insertions, batch_size, subset_strategy, alignment_size, subset_random_seed=None, redraw=False, unaligned_queries=False, count_gaps=False):
+def main(input_h, output_h, masking_off, sampler, mask_entire_sequence, reference_msa_handle, delete_insertions, batch_size, subset_strategy, alignment_size, subset_random_seed=None, redraw=False, unaligned_queries=False, count_gaps=False, mask_distance=float("inf")):
     clean_flag = 'upper'
     if delete_insertions:
         clean_flag = 'delete'
@@ -45,8 +45,8 @@ def main(input_h, output_h, masking_off, sampler, mask_entire_sequence, referenc
             tmp_msa_list.append(seq_msa.copy() + [seq])            
 
         if len(tmp_msa_list) == batch_size or i+1 == len(in_seqs):
-            
-            scores = sampler.log_likelihood_batch(tmp_msa_list, with_masking=not masking_off, mask_entire_sequence=mask_entire_sequence, count_gaps=count_gaps)
+            #TODO: batching is a little weird still because it used to be solely based on len(tmp_msa_list), but now batch size is independent of len(tmp_msa_list)
+            scores = sampler.log_likelihood_batch(tmp_msa_list, with_masking=not masking_off, mask_entire_sequence=mask_entire_sequence, count_gaps=count_gaps, mask_distance=mask_distance, batch_size=batch_size)
             for j in range(len(scores)):
                 print(f"{tmp_name_list[j]}\t{scores[j]}", file=output_h)
             output_h.flush()
@@ -55,7 +55,7 @@ def main(input_h, output_h, masking_off, sampler, mask_entire_sequence, referenc
         
  
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=textwrap.dedent("""Calculates average log likelihood of a fasta ESM BERT model.
+    parser = argparse.ArgumentParser(description=textwrap.dedent("""Calculates average log likelihood of a fasta from the ESM-MSA model.
     
     writes a tab separated output file with columns:
     sequence name, score
@@ -79,13 +79,22 @@ if __name__ == "__main__":
     parser.add_argument("--redraw", action='store_true', default=False, help="If subset_strategy is random, by default a single random draw will be used for all calculations. If redraw is set, then a new random draw of reference sequences will be done for each target sequence.")
     parser.add_argument("--unaligned_queries",  action='store_true', default=False, help="If the input sequences are unaligned or come from a different alignment than the reference msa, then use muscle profile to add each sequence to the reference alignment.")
     parser.add_argument("--count_gaps",  action='store_true', default=False, help="If true then average the log likelihoods over the coding positions as well as the gap positions. By default, gap positions are not considered in the sums and averages.")
+    parser.add_argument("--mask_distance",  type=int, default=None, help="If set, then multiple positions will be masked at a time, to make the likelihood calculations faster. Default: mask positions one at a time.") #TODO: need better explanation.
 
-    #TODO: re-align everything, to allow for the reference msa to start unaligned or to eliminate gap-only columns in msa subsets. In other words, add an "unaligned_references" option.
 
     args = parser.parse_args()
 
     if args.redraw and args.subset_strategy != 'random':
         raise ValueError(f"redraw is set, but subset_strategy is not 'random', so all the draws will be the same. That's probably not what you're trying to do.")
+
+    mask_distance = float("inf")
+    if args.mask_distance is not None:
+        mask_distance = args.mask_distance
+    
+    if mask_distance < 1:
+        raise ValueError(f"mask distance must be an integer >= 1.")
+
+
 
     if args.i is not None:
         input_handle = open(args.i, "r")
@@ -100,7 +109,7 @@ if __name__ == "__main__":
     reference_msa_handle = open(args.reference_msa, "r")
     
     sampler = ESM_MSA_sampler(model_map[args.model](), device=args.device)
-    main(input_handle, output_handle, args.masking_off, sampler, args.mask_entire_sequence, reference_msa_handle, args.delete_insertions, args.batch_size, args.subset_strategy, args.alignment_size, args.subset_random_seed, args.redraw, args.unaligned_queries, args.count_gaps)
+    main(input_handle, output_handle, args.masking_off, sampler, args.mask_entire_sequence, reference_msa_handle, args.delete_insertions, args.batch_size, args.subset_strategy, args.alignment_size, args.subset_random_seed, args.redraw, args.unaligned_queries, args.count_gaps, mask_distance)
 
     reference_msa_handle.close()
     if args.i is not None:
