@@ -307,7 +307,7 @@ class ESM_MSA_sampler():
                     original_string = original_msas[target_index][1]
                     all_samples_for_this_msa = []
 
-                    num_samples_for_this_msa = min(mask_distance, len(original_string))
+                    num_samples_for_this_msa = int(min(mask_distance, len(original_string)))
                     for _ in range(num_samples_for_this_msa): #I think you can do this with a pytorch/numpy broadcast of a slice from tokens
                         sample = original_msas.copy() 
                         sample[target_index] = (str(target_index), original_string) # this doesn't seem necessary?
