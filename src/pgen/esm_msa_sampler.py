@@ -283,23 +283,20 @@ class ESM_MSA_sampler():
                     likelihood_sum = 0.0
                     original_msas = reformatted_msas[msa_idx] #is it possible to copy a slice from tokens?
                     original_string = original_msas[target_index][1]
-                    all_samples_for_this_msa = []
 
                     num_samples_for_this_msa = int(min(mask_distance, len(original_string)))
-                    for _ in range(num_samples_for_this_msa): #I think you can do this with a pytorch/numpy broadcast of a slice from tokens
-                        sample = original_msas.copy() 
-                        sample[target_index] = (str(target_index), original_string) # this doesn't seem necessary?
-                        all_samples_for_this_msa.append(sample.copy())
+
+                    # I think you can do this with a pytorch/numpy broadcast of a slice from tokens
+                    all_samples_for_this_msa = [original_msas.copy() for _ in range(num_samples_for_this_msa)]
 
                     masked_idx = set()
                     _, _, all_samples_for_this_msa_tokens = self.model.batch_converter(all_samples_for_this_msa)
                     # all_samples_for_this_msa_tokens = all_samples_for_this_msa_tokens.cuda() if self.cuda else all_samples_for_this_msa_tokens
+
                     for i_sample in range(num_samples_for_this_msa):
-                        for idx_pos in range(range_start, msa_range_end[msa_idx]):
-                            # TODO this could be more efficient
-                            if idx_pos % num_samples_for_this_msa == i_sample:
-                                all_samples_for_this_msa_tokens[i_sample, target_index, idx_pos] = self.model.alphabet.mask_idx
-                                masked_idx.add(idx_pos)
+                        positions = range(range_start + i_sample, msa_range_end[msa_idx], num_samples_for_this_msa)
+                        all_samples_for_this_msa_tokens[i_sample, target_index, positions] = self.model.alphabet.mask_idx
+                        masked_idx.update(positions)
                     assert len(masked_idx) == len(original_string), sorted(masked_idx)
 
                     if verbose:
@@ -313,11 +310,10 @@ class ESM_MSA_sampler():
                         this_batch = this_batch.cuda() if self.cuda else this_batch
                         token_probs = torch.log_softmax(self.model.model(this_batch)['logits'], dim=-1)
 
-                        
+
                         for i_sample in range(token_probs.shape[0]):
                             for idx_pos in range(range_start, msa_range_end[msa_idx]):
-                                # TODO this could be more efficient
-                                if idx_pos % num_samples_for_this_msa == (i_sample + batch_start):
+                                if (idx_pos-range_start) % num_samples_for_this_msa == (i_sample + batch_start):
                                     if count_gaps or original_tokens[msa_idx, idx_pos].item() not in gap_tokens: # only add the likelihood to the running sum if we are counting gaps, or if the position does not contain a gap.
                                         likelihood_sum += token_probs[i_sample, target_index, idx_pos, original_tokens[msa_idx, idx_pos].item()]
                                         counted_idx.add(idx_pos)

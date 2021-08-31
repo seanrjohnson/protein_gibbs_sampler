@@ -267,7 +267,7 @@ class ESM_sampler():
         return indexes, last_i
 
 
-    def log_likelihood(self, seq, with_masking=True, verbose=False, mask_distance=float("inf")):
+    def log_likelihood(self, seq, with_masking=True, verbose=False, mask_distance=float("inf"), batch_size=None):
         """
             seq: a protein sequence string
             with_masking: if True, then iterate over the sequence masking one position at a time and summing the log likelihoods of the correct choice at the masked positions.
@@ -275,7 +275,7 @@ class ESM_sampler():
             mask_distance: For optimization, when masking individual positions, the distance between masked positions in the same execution, by default only one position is masked per model call.
             batch_size: number of MSAs to run on the gpu at once, if None, then batch_size=len(msa_list). default=None.
         """
-        return self.log_likelihood_batch([seq], with_masking, verbose, mask_distance)[0]
+        return self.log_likelihood_batch([seq], with_masking, verbose, mask_distance, batch_size)[0]
 
     def log_likelihood_batch(self, seq_list, with_masking=True, verbose=False, mask_distance=float("inf"), batch_size=None):
 
@@ -319,11 +319,10 @@ class ESM_sampler():
 
                     masked_idx = set()
                     for i_sample in range(num_sequences_to_process):
-                        for idx_pos in range(range_start, batch_range_end[seq_idx]):
-                            if idx_pos % num_sequences_to_process == i_sample:
-                                tokens_for_seq[i_sample, idx_pos] = self.model.alphabet.mask_idx
-                                masked_idx.add(idx_pos)
-                    assert len(masked_idx) == len(seq_list[seq_idx]), sorted(masked_idx)
+                        positions = range(range_start + i_sample, batch_range_end[seq_idx], num_sequences_to_process)
+                        tokens_for_seq[i_sample, positions] = self.model.alphabet.mask_idx
+                        masked_idx.update(positions)
+                    assert len(masked_idx) == len(original_string), sorted(masked_idx)
 
                     counted_idx = set()
                     for batch_start in range(0, num_sequences_to_process, batch_size):
@@ -334,10 +333,11 @@ class ESM_sampler():
 
                         for i_sample in range(token_probs.shape[0]):
                             for idx_pos in range(range_start, batch_range_end[seq_idx]):
-                                if idx_pos % num_sequences_to_process == (i_sample + batch_start):
+                                if (idx_pos - range_start) % num_sequences_to_process == (i_sample + batch_start):
                                     likelihood_sum += token_probs[
                                         i_sample, idx_pos, old_toks[seq_idx, idx_pos].item()]
                                     counted_idx.add(idx_pos)
+
                     assert len(counted_idx) == len(seq_list[seq_idx]), sorted(counted_idx)
 
                     results.append(float(likelihood_sum / len(seq_list[seq_idx])))

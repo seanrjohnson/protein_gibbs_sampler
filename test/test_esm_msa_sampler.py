@@ -292,10 +292,20 @@ def test_likelihood_batch_with_masking_entire_sequence(msa_sampler, msa_batch_ex
                                                     (50, (-0.738074004650116, -0.876354455947876))  # input 2 is 44 chars
                                                     ])
 def test_likelihood_batch_with_individual_masking_distance(msa_sampler, msa_batch_example, mask_distance, expected):
-    # This is essentially the same as masking the entire sequence, because we mask each position
     result = msa_sampler.log_likelihood_batch(msa_batch_example, target_index=4, with_masking=True,
                                               mask_distance=mask_distance)
-    print(result)
+    assert result[0] == pytest.approx(expected[0])
+    assert result[1] == pytest.approx(expected[1])
+
+
+@pytest.mark.parametrize("batch_size", [1, 2, 5, 100])
+@pytest.mark.parametrize("mask_distance,expected", [(1, (-2.3227384090423584, -2.8657891750335693)),
+                                                    (2, (-0.809113621711731, -0.9949756264686584)),
+                                                    (5, (-0.7348969578742981, -0.883063554763794)),
+                                                    ])
+def test_likelihood_batch_handles_batch_sizes(msa_sampler, msa_batch_example, batch_size, mask_distance, expected):
+    result = msa_sampler.log_likelihood_batch(msa_batch_example, target_index=4, with_masking=True,
+                                              mask_distance=mask_distance, batch_size=batch_size)
     assert result[0] == pytest.approx(expected[0])
     assert result[1] == pytest.approx(expected[1])
 

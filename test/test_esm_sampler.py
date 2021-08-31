@@ -301,6 +301,19 @@ def test_likelihood_batch_with_individual_masking_distance(esm_sampler_fixture, 
     input_seq = ["MRHGDISSSNDTVGVAVVNYKMPRLHTAAEVLDNAR", "LTWEEQCKTCKGCRYNFQHE"]
     actual = esm_sampler_fixture.log_likelihood_batch(input_seq, with_masking=True, mask_distance=mask_distance)
 
-    print (actual[0], actual[1])
+    assert actual[0] == pytest.approx(expected[0])
+    assert actual[1] == pytest.approx(expected[1])
+
+
+@pytest.mark.parametrize("batch_size", [1, 2, 5, 100])
+@pytest.mark.parametrize("mask_distance,expected", [(1, (-2.7889750003814697, -3.2179431915283203)),
+                                                    (2, (-2.82377028465271, -3.142765522003174)),
+                                                    (5, (-2.8046181201934814, -3.0614192485809326)),
+                                                    ])
+def test_likelihood_batch_handles_batch_sizes(esm_sampler_fixture, batch_size, mask_distance, expected):
+    input_seq = ["MRHGDISSSNDTVGVAVVNYKMPRLHTAAEVLDNAR", "LTWEEQCKTCKGCRYNFQHE"]
+    actual = esm_sampler_fixture.log_likelihood_batch(input_seq, with_masking=True,
+                                                      mask_distance=mask_distance, batch_size=batch_size)
+
     assert actual[0] == pytest.approx(expected[0])
     assert actual[1] == pytest.approx(expected[1])
