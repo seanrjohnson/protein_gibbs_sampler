@@ -285,7 +285,6 @@ class ESM_sampler():
         # https://github.com/facebookresearch/esm/blob/master/variant-prediction/predict.py
 
         n_batches = len(seq_list)
-        log_likelihood_sum = [0 for _ in range(n_batches)]
         if batch_size is None:
             batch_size = n_batches
 
@@ -346,6 +345,7 @@ class ESM_sampler():
                 return results
 
             else:  # no masking, so we just need to calculate a single forward pass on the unmasked model
+                log_likelihood_sum = [0 for _ in range(n_batches)]
                 token_probs = torch.log_softmax(self.model.model(tokens)['logits'], dim=-1)
                 for batch_idx in range(n_batches):
                     for idx in range(range_start, batch_range_end[batch_idx]):

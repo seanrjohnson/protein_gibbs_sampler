@@ -15,7 +15,7 @@ model_map = {"esm_msa1": models.ESM_MSA1}
 
 
 
-def main(input_h, output_h, masking_off, sampler, mask_entire_sequence, reference_msa_handle, delete_insertions, batch_size, subset_strategy, alignment_size, subset_random_seed=None, redraw=False, unaligned_queries=False, count_gaps=False, mask_distance=float("inf")):
+def main(input_h, output_h, masking_off, sampler, reference_msa_handle, delete_insertions, batch_size, subset_strategy, alignment_size, subset_random_seed=None, redraw=False, unaligned_queries=False, count_gaps=False, mask_distance=float("inf")):
     clean_flag = 'upper'
     if delete_insertions:
         clean_flag = 'delete'
@@ -46,7 +46,7 @@ def main(input_h, output_h, masking_off, sampler, mask_entire_sequence, referenc
 
         if len(tmp_msa_list) == batch_size or i+1 == len(in_seqs):
             #TODO: batching is a little weird still because it used to be solely based on len(tmp_msa_list), but now batch size is independent of len(tmp_msa_list)
-            scores = sampler.log_likelihood_batch(tmp_msa_list, with_masking=not masking_off, mask_entire_sequence=mask_entire_sequence, count_gaps=count_gaps, mask_distance=mask_distance, batch_size=batch_size)
+            scores = sampler.log_likelihood_batch(tmp_msa_list, with_masking=not masking_off, count_gaps=count_gaps, mask_distance=mask_distance, batch_size=batch_size)
             for j in range(len(scores)):
                 print(f"{tmp_name_list[j]}\t{scores[j]}", file=output_h)
             output_h.flush()
@@ -66,8 +66,6 @@ if __name__ == "__main__":
     parser.add_argument("--reference_msa", default=None, required=True, help="A fasta file with an msa to use as a reference")
     parser.add_argument("--device", type=str, default="cpu", choices={"cpu", "gpu"}, help="cpu or gpu")
     parser.add_argument("--masking_off", action="store_true", default=False, help="If set, no masking is done.")
-    parser.add_argument("--mask_entire_sequence", action="store_true", default=False,
-                        help="If set, entire sequence is masked instead of a single value.")
     parser.add_argument("--delete_insertions", action='store_true', default=False, help="If set, then remove all lowercase and '.' characters from input sequences. Default: convert lower to upper and '.' to '-'.") #might want to have the option to keep "." in the msa and convert lower to upper (which would be consistent with the vocabulary, which has ".", but does not have lowercase characters.)
     parser.add_argument("--alignment_size", type=int, default=sys.maxsize, help="Sample this many sequences from the reference alignment before doing gibbs sampling, recommended values are 31-255. Default: the entire reference alignment.")
     
@@ -109,7 +107,7 @@ if __name__ == "__main__":
     reference_msa_handle = open(args.reference_msa, "r")
     
     sampler = ESM_MSA_sampler(model_map[args.model](), device=args.device)
-    main(input_handle, output_handle, args.masking_off, sampler, args.mask_entire_sequence, reference_msa_handle, args.delete_insertions, args.batch_size, args.subset_strategy, args.alignment_size, args.subset_random_seed, args.redraw, args.unaligned_queries, args.count_gaps, mask_distance)
+    main(input_handle, output_handle, args.masking_off, sampler, reference_msa_handle, args.delete_insertions, args.batch_size, args.subset_strategy, args.alignment_size, args.subset_random_seed, args.redraw, args.unaligned_queries, args.count_gaps, mask_distance)
 
     reference_msa_handle.close()
     if args.i is not None:
