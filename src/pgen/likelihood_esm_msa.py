@@ -77,7 +77,7 @@ if __name__ == "__main__":
     parser.add_argument("--redraw", action='store_true', default=False, help="If subset_strategy is random, by default a single random draw will be used for all calculations. If redraw is set, then a new random draw of reference sequences will be done for each target sequence.")
     parser.add_argument("--unaligned_queries",  action='store_true', default=False, help="If the input sequences are unaligned or come from a different alignment than the reference msa, then use muscle profile to add each sequence to the reference alignment.")
     parser.add_argument("--count_gaps",  action='store_true', default=False, help="If true then average the log likelihoods over the coding positions as well as the gap positions. By default, gap positions are not considered in the sums and averages.")
-    parser.add_argument("--mask_distance",  type=int, default=None, help="If set, then multiple positions will be masked at a time, to make the likelihood calculations faster. Default: mask positions one at a time.") #TODO: need better explanation.
+    parser.add_argument("--mask_distance",  type=int, default=None, help="If set, then multiple positions will be masked at a time, with (mask_distance - 1) non-masked positions between each masked position. This will make the likelihood calculations faster. Default: mask positions one at a time.")
 
 
     args = parser.parse_args()
@@ -88,7 +88,7 @@ if __name__ == "__main__":
     mask_distance = float("inf")
     if args.mask_distance is not None:
         mask_distance = args.mask_distance
-    
+
     if mask_distance < 1:
         raise ValueError(f"mask distance must be an integer >= 1.")
 

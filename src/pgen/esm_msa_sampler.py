@@ -18,7 +18,6 @@ class ESM_MSA_sampler():
         self.model = model
 
         #switch model to eval mode
-        #TODO: CHECK THAT THIS ACTUALLY SWITCHES THE MODEL TO EVAL MODE AND TURNS OFF GRADIENTS!
         self.model.model = self.model.model.eval()
         self.cuda = False
         #set device
@@ -106,7 +105,8 @@ class ESM_MSA_sampler():
 
         #TODO: repetition penalty, somehow?
         #TODO: add dilated sequential sampling, like sampling every third or fifth amino acid and then doing the whole protein in like 3 or 5 steps, or something like that.
-        with torch.no_grad(): # I'm not sure if this no_grad is necessary or not, but it couldn't hurt!
+        #      Like we do for the masking.
+        with torch.no_grad(): # I'm not sure if this no_grad is necessary or not, but it probably doesn't hurt.
 
             num_sequences = len(seed_msa)
             sequence_length = len(seed_msa[0])
@@ -158,9 +158,9 @@ class ESM_MSA_sampler():
                     # shape: (batch, sequences, sequence_len, alphabet_digits)
                     out = self.model.model(batch)["logits"]
 
-                    for batch_index in range(batch_size):
-                        for sequence_index in range(num_sequences):
-                            for kk in target_indexes[batch_index][sequence_index]:
+                    for batch_index in range(batch_size): #msa
+                        for sequence_index in range(num_sequences): #sequence
+                            for kk in target_indexes[batch_index][sequence_index]: #position
                                 idx = generate_step(out[batch_index][sequence_index],
                                                     gen_idx=kk,
                                                     top_k=top_k,
@@ -168,7 +168,7 @@ class ESM_MSA_sampler():
                                                     sample=(ii < burnin),
                                                     valid_idx=self.valid_aa_idx)
                                 batch[batch_index][sequence_index][kk] = idx
-                if batch_n == (n_batches - 1): #last batch, so maybe don't take all of them, just take enough to get to n_samples
+                if batch_n == (n_batches - 1): #last batch, so don't take all of them, just take enough to get to n_samples
                     sequences += self.untokenize_batch(batch)[0:n_samples - len(sequences)]
                 else:
                     sequences += self.untokenize_batch(batch)
@@ -233,11 +233,19 @@ class ESM_MSA_sampler():
         return self.log_likelihood_batch([msa], target_index, with_masking, verbose, count_gaps, mask_distance)[0]
 
     def log_likelihood_batch(self, msa_list, target_index=-1, with_masking=True, verbose=False,
-                       count_gaps=False, mask_distance=float("inf"), batch_size=None):
+                       count_gaps=False, mask_distance=float("inf"), batch_size=1):
         """
-            msa_list: a list of MSAs to calculate log_likelihood for.
-            batch_size: number of MSAs to run on the gpu at once, if None, then batch_size=len(msa_list). default=None.
-
+            msa_list: a list of MSAs to calculate log_likelihood for. Each msa is a list of strings of the same length containing characters -ACDEFGHIKLMNPQRSTVWY
+            target_index: the sequence in the msa to mask. default -1 (the last sequence in the msa)
+            with_masking: if True, then iterate over the sequence masking one position at a time and summing the log likelihoods of the correct choice at the masked positions.
+                        if False, then run the model just once, on the unmasked sequence.
+            verbose: if True then print debug information to stdout.
+            count_gaps: if True, then likelihoods for positions that are gaps in the target sequence will not be included in the averaging.
+            mask_distance: For optimization, when masking individual positions, the distance between masked positions in the same execution, by default only one position is masked per model call.
+            
+            
+            batch_size: number of MSAs to run at once. default=1.
+            
         """
 
         # Inspired by and borrowing code from:

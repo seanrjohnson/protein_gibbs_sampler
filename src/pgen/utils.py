@@ -1,7 +1,4 @@
-from .core import SingletonMeta
 import os
-import logging
-from logging.handlers import RotatingFileHandler
 from typing import Dict,Tuple
 import io
 # import pandas as pd
@@ -32,95 +29,6 @@ def _open_if_is_name(filename_or_handle):
 
     return (out, input_type)
 
-LEGAL_AA_CODES={c:i for i,c in enumerate("-ACDEFGHIKLMNOPQRSTUVWYX")} #mapping characters to indexes
-AA_REVERSE_LOOKUP=len(LEGAL_AA_CODES)*[""]
-for i in LEGAL_AA_CODES:
-    AA_REVERSE_LOOKUP[LEGAL_AA_CODES[i]] = i #mapping indexes to characters
-
-def msa_to_matrix(list_of_strings):
-    """converts an msa to a numerical array of dimensions num_sequences x alignment length"""
-    msa = list_of_strings
-    tr = LEGAL_AA_CODES
-    out = np.zeros((len(msa), len(msa[0])), dtype=np.uint8)
-    for i in range(len(msa)):
-        for j in range(len(msa[0])):
-            out[i,j] = tr[msa[i][j]]
-    return out
-
-
-def msa_to_frequencies(inp_names, inp_seqs, description_prefix=None):
-    '''
-        Converts a multiple sequence alignment (msa) (a list of sequences) into an array of dimensions number_of_legal_aa_characters x sequence_length
-        where the values are in the range (0,1) and sum to 1 for each column
-
-        description_prefix can be used to select a subset, based on name, of the sequences in the input msa.
-
-        adapted from: https://bitbucket.org/seanrjohnson/srj_chembiolib/src/master/correlated_mutations.py
-    '''
-    seqs = list()
-
-    for i in range(len(inp_seqs)):
-        if ( (description_prefix is None) or (inp_names[i].startswith(description_prefix)) ):
-            seqs.append(inp_seqs[i])
-
-    out = np.zeros((len(LEGAL_AA_CODES), len(inp_seqs[0]) ))
-    
-    msa_matrix = msa_to_matrix(seqs) # num_seqs x seq_len = AA_idx
-
-    for i in range(msa_matrix.shape[0]):
-        for pos in range(msa_matrix.shape[1]):
-            out[msa_matrix[i,pos],pos] += 1
-    return out.astype(np.float64) / np.float64(len(seqs))
-
-def msa_to_second_order_statistics(inp_names, inp_seqs, description_prefix=None):
-    '''
-      calculates raw correlations between positions in an msa_array
-
-      output: an array of dimensions (alignment_length, alignment_length, AA_CODES_length, AA_codes_length)
-      where the indexes are: (first_position_AA, second_position_AA,first_position_index, second_position_index)
-      and the values are the frequency of the associations (0-1)
-        description_filter can be used to select a subset, based on name, of the sequences in the input msa.
-
-    adapted from: https://bitbucket.org/seanrjohnson/srj_chembiolib/src/master/correlated_mutations.py
-    '''
-    seqs = list()
-
-    for i in range(len(inp_seqs)):
-        if ( (description_prefix is None) or (inp_names[i].startswith(description_prefix)) ):
-            seqs.append(inp_seqs[i])
-    
-    msa_matrix = msa_to_matrix(seqs) # num_seqs x seq_len = AA_idx
-
-    out = np.zeros((len(LEGAL_AA_CODES),len(LEGAL_AA_CODES),msa_matrix.shape[1],msa_matrix.shape[1]), dtype=np.uint32)
-    for i in range(msa_matrix.shape[0]):
-      # print(seq_number)
-      for pos1 in range(msa_matrix.shape[1]):
-        for pos2 in range(msa_matrix.shape[1]):
-          out[msa_matrix[i,pos1], msa_matrix[i,pos2], pos1, pos2] += 1 
-
-    return out.astype(np.float64)/np.float64(len(seqs))
-
-def second_order_correlations(fos, sos):
-    """
-        sos[aa1,aa2,pos1,pos2] - fos[aa1,pos1]*fos[aa2,pos2]
-    """
-
-    # TODO: try to vectorize this.
-    out = np.zeros(sos.shape)
-
-    for aa1 in range(sos.shape[0]):
-        for aa2 in range(sos.shape[1]):
-            for pos1 in range(sos.shape[2]):
-                for pos2 in range(sos.shape[3]):
-                    out[aa1,aa2,pos1,pos2] = sos[aa1,aa2,pos1,pos2] - (fos[aa1,pos1] * fos[aa2,pos2])
-    return out
-
-def flatten_second_order(sos):
-    """
-        sos will be symmetric, so we only need one hez
-    """
-    out = np.zeros(sos.shape[2]*sos.shape[2])
-    return out
 
 def unalign(sequence: str) -> Tuple[str,list]:
     """
