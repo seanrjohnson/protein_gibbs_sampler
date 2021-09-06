@@ -24,7 +24,7 @@ def main(input_h, output_h, masking_off, device, model, batch_size, mask_distanc
         tmp_seq_list.append(seq)
         tmp_name_list.append(name)
         if len(tmp_seq_list) == batch_size or i+1 == len(in_seqs):
-            #TODO: batching is a little weird still because it used to be solely based on len(tmp_seq_list), but now batch size is independent of len(tmp_msa_list)
+            #TODO: batching is a little weird still because it used to be solely based on len(tmp_seq_list), but now batch size is independent of len(tmp_seq_list)
             scores = sampler.log_likelihood_batch(tmp_seq_list, with_masking=not masking_off, mask_distance=mask_distance,batch_size=batch_size)
             for j in range(len(scores)):
                 print(f"{tmp_name_list[j]}\t{scores[j]}", file=output_h)
