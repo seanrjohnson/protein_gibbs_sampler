@@ -1,10 +1,10 @@
 name: protein_gibbs_sampler
 channels:
   - defaults
+  - pytorch
+  - nvidia
   - bioconda
   - conda-forge
-  - nvidia
-  - pytorch
 dependencies:
   - python>=3.8
   - muscle~=3.8.0
