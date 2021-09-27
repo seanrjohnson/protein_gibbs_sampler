@@ -13,6 +13,7 @@ dependencies:
   - pytorch~=1.9.0
   - cudatoolkit=11.1
   - mafft=7.487
+  - hmmer~=3.3.2
   - pip
   - pytest
   - pytest-datadir

@@ -262,7 +262,7 @@ def test_likelihood_with_masking_entire_sequence_skip_gap(msa_sampler, msa_batch
     # The last one contributes -2.1356, of 28 characters.. so (-65.0367 - (-2.1356))/27
     msa_batch_example[0][-1] = "MTSPDELAAARARIDELDARLVALLAE-"
     assert msa_sampler.log_likelihood(msa_batch_example[0], target_index=4, with_masking=True,
-                                      mask_distance=1, count_gaps=False) == pytest.approx(-2.3296703)
+                                      mask_distance=1, count_gaps=False) == pytest.approx(-2.32967)
 
 
 def test_likelihood_batch_without_masking(msa_sampler, msa_batch_example):
@@ -402,3 +402,33 @@ def test_log_likelihood_count_gaps_2(msa_sampler):
 
     # removing the gap should improve the score, because the Qs should be predicted from the neighbor Qs, and the gaps will not be as much.
     assert no_gaps > gaps
+
+def test_likelihood_executable_top_hits(msa_sampler):
+    input_aln = [
+     'AKDKGLDINSAEKFFEALHSESIKHQINVMEK',
+     'NEGPLDKESVRTIYELLMSSSHDIQAEQRQRE',
+     'GQEQNLDSNYISQVYHTIIEQSVLSQQEFNNRF',
+     'NPGPLDDSAIISMFNLIMDGSRILEKKQTNQH',
+     'GKEKQLDPQYVSQIFHTIIEDSVLYQRS']
+
+    query_name = "xyz"
+    reference_sequence = f">{query_name}\n{input_aln[-1]}\n"
+    unaligned_input_handle = StringIO(reference_sequence)
+    reference_seqs_string = "\n".join([f">{n}\n{s}" for n,s in enumerate(input_aln[:-1]) ]) + "\n"
+    alignment_handle = StringIO(reference_seqs_string)
+
+    output_handle = StringIO()
+    likelihood_esm_msa.main(unaligned_input_handle, output_handle, masking_off=True, sampler=msa_sampler,
+        reference_msa_handle=alignment_handle, delete_insertions=False, batch_size=1, subset_strategy="top_hits",alignment_size=2,)
+    output_handle.seek(0)
+
+
+    # aligned_out_n, aligned_out_v = aligned_output_handle.readline().split()
+    # aligned_out_v = float(aligned_out_v)
+    # assert aligned_out_n == query_name
+
+    # unaligned_out_n, unaligned_out_v = unaligned_output_handle.readline().split()
+    # unaligned_out_v = float(unaligned_out_v)
+    # assert unaligned_out_n == query_name
+
+    # assert unaligned_out_v == pytest.approx(aligned_out_v)

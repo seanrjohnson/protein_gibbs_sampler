@@ -12,15 +12,24 @@ import argparse
 import tempfile
 import os
 import sys
+from Bio import SearchIO
+
 
 class RawAndDefaultsFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawTextHelpFormatter):
     pass
 
-def _open_if_is_name(filename_or_handle):
+def _open_if_is_name(filename_or_handle, mode="r"):
+    """
+        if a file handle is passed, return the file handle
+        if a Path object or path string is passed, open and return a file handle to the file.
+
+        returns:
+            file_handle, input_type ("name" | "handle")
+    """
     out = filename_or_handle
     input_type = "handle"
     try:
-        out = open(filename_or_handle,"r")
+        out = open(filename_or_handle, mode)
         input_type = "name"
     except TypeError:
         pass
@@ -211,9 +220,11 @@ def write_sequential_fasta(path, sequences):
     """
         writes a fasta file to path, where the sequences are named as integers from 0 to len(sequences) - 1.
     """
-    with open(path,"w") as fasta_out:
-        for i, seq in enumerate(sequences):
-            print(f">{i}\n{seq}",file=fasta_out)
+    fasta_out, input_type = _open_if_is_name(path, "w")
+    for i, seq in enumerate(sequences):
+        print(f">{i}\n{seq}",file=fasta_out)
+    if input_type == "name":
+        fasta_out.close()
 
 def write_partitioned_fasta(path, sequences):
     """
@@ -226,7 +237,7 @@ def write_partitioned_fasta(path, sequences):
             for i, seq in enumerate(seqs):
                 print(f">{category}_{i}\n{seq}",file=fasta_out)
 
-def generate_alignment(sequences, tmp_dir="/tmp"):
+def generate_alignment(sequences):
     """
         uses mafft to align sequences.
         
@@ -236,18 +247,67 @@ def generate_alignment(sequences, tmp_dir="/tmp"):
         returns (seq_names, sequences) as a tuple of lists.
 
     """
-
-    #tmp_fasta_path = str((Path(tmp_dir) / str(uuid.uuid4())).with_suffix(".fasta"))
-    tmp_fasta_path = str((Path(tmp_dir) / str(uuid.uuid4())).with_suffix(".fasta"))
-    tmp_fasta_out_path = str((Path(tmp_dir) / str(uuid.uuid4())).with_suffix(".fasta"))
-    write_partitioned_fasta(tmp_fasta_path,sequences)
-    align_out = subprocess.run(['mafft', '--thread', '8', '--maxiterate', '1000', '--globalpair', tmp_fasta_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    try:
-        align_out.check_returncode()
-    except:
-        print(align_out.stderr)
-        raise(Exception)
+    with tempfile.TemporaryDirectory() as tmp:
+        #tmp_fasta_path = str((Path(tmp_dir) / str(uuid.uuid4())).with_suffix(".fasta"))
+        tmp_fasta_path =  tmp + "/tmp.fasta" #str((Path(tmp_dir) / str(uuid.uuid4())).with_suffix(".fasta"))
+        # tmp_fasta_out_path = str((Path(tmp_dir) / str(uuid.uuid4())).with_suffix(".fasta"))
+        write_partitioned_fasta(tmp_fasta_path,sequences)
+        align_out = subprocess.run(['mafft', '--thread', '8', '--maxiterate', '1000', '--globalpair', tmp_fasta_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        try:
+            align_out.check_returncode()
+        except:
+            print(align_out.stderr, sys.stderr)
+            raise(Exception)
     return parse_fasta_string(align_out.stdout.decode('utf-8'),True)
+
+def run_phmmer(query, database, evalue=10, cpu=2):
+    """
+    Takes a <query> list of protein sequences,
+        run hmmscan against the <database>,
+            returns the best hit or hits for each
+            coding sequence if no hits, returns None
+    Args:
+        genbank: str, path-like
+            The input genbank file (annotated genome sequence)
+
+        query: 
+            string of a protein sequence
+
+        database: str, path-like
+            protein fasta file
+
+        evalue: float
+            The threshold E value for the phmmer hit to be reported
+
+        cpu: float
+            The number of CPU cores to be used to run phmmer
+
+    Returns: a list of hits ranked by how good the hits are.
+
+  
+    """
+    # Create a fasta file containing the query protein sequence. The fasta file name is based on input genbank file name
+    with tempfile.TemporaryDirectory() as tmp:
+        queryfa_path = tmp + "/query.fa"
+        query_name = "QUERY"
+        with open(queryfa_path, "w") as tmpfasta:
+            print(f">{query_name}\n{query}", file=tmpfasta)
+        
+        
+        search_args = ['phmmer', '--noali', '--notextw', '--cpu', str(cpu), '-E', str(evalue)]
+        search_args += [queryfa_path, database]
+        out = subprocess.run(search_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                             encoding='utf-8')
+
+        if out.returncode != 0:
+            print(
+                f'Error in hmmer execution: \n{out.stdout}\n{out.stderr}', file=sys.stderr)
+            exit(1)
+
+        hits = SearchIO.read(io.StringIO(out.stdout), 'hmmer3-text')
+        hit_names = [x.id for x in hits]
+        
+    return hit_names
 
 class SequenceSubsetter:
     subset_strategies = {"random","in_order"}

@@ -1,6 +1,7 @@
 import pytest
 from pgen import utils
 import io
+import tempfile
 
 ####### Fixtures #######
 @pytest.fixture(scope="function")
@@ -106,3 +107,37 @@ def test_add_to_msa(msa,new_seq,expected):
     
     out = utils.add_to_msa(msa, new_seq)
     assert out == expected
+
+def test_generate_alignment():
+    input = [
+     'AKDKGLDINSAEKFFEALHSESIKHQINVMEK',
+     'NEGPLDKESVRTIYELLMSSSHDIQAEQRQRE',
+     'GQEQNLDSNYISQVYHTIIEQSVLSQQEFNNRF',
+     'NPGPLDDSAIISMFNLIMDGSRILEKKQTNQH',
+     'GKEKQLDPQYVSQIFHTIIEDSVLYQRS']
+    out = utils.generate_alignment({"1": input})
+    print(out)
+    assert len(out[0]) == len(out[1]) # test that every output sequence has a name
+    assert len(out[0]) == len(input)
+    assert all( [len(out[1][i]) == len(out[1][0]) for i in range(len(out[1])) ] ) # test that all the output sequences are the same length.
+    assert len(set(out[0])) == len(out[0]) # test that everything has a unique name
+    for i in range(len(input)):
+        assert input[i] == out[1][i].replace("-","") # preserve order of input sequences
+
+def test_run_phmmer():
+    input = [
+     'MTFKLPDLPFDAGALEPYISALTMKTHHGKHHAAYIKNMNAILAERADAQTSLEAVVSLAAREANKKLFNNAAQAWNHGFFWQSLSADAQNGPSGDLRAAIMNSFGSLEAFNDEAKAKGVGHFASGWLWLVSDESGALSLCDLHDADTPITDPSLTPLLVCDLWEHAYYIDYANERPRFVDAFLTKLANWRFAQAQYQAARSGSGA',
+     'FAVSATKIHTKATLPALDYAYEALEPILSSHLLHLHHDKHHQTYVNNLNAAEEKLKDPSLDLHTQIALQSAIKFNGGGHVNHSIYWKNLAPKSAGGGAFNAQAPLGQAIVKKWGSFEAFKKNFNTQLAAIQGSGWGWLIKDADGSLRITTTMNQDTILDATPVITIDAWEHAYYPQYENRKAEYYENIWQIINWKEAEAR',
+     'MKFELPALPYPVNALEPTMSARTIEFHWGKHEAAYINNLNGLIEGTPLENDTLEEIVRKSDGPIYNNAAQAWNHIFFFFQLAPNGKKEPGGALAEAIDRHFGSFAAFKEAFAKAGATLFGSGWAWLSVKPDGQLEITQGPNAHNPLKNGAVPLLTADVWEHAYYLDYQNRRPDFLSALWNLVDWKVIEKR',
+     'MTHALPELGYDYDALEPFIDAKTMEIHHTKHHQTYVDKLNAALDGHDDLAKLGVNELISDLGKVPESIRPAVRNHGGGHSNHSFFWPLLKKNVALGGAVQEAIDRDFGSFDSFKTEFSNKAALLFGSGWTWVVADQGKLSIVTTPNQDSPVSDGKTPVLGLDVWEHAYYLKYQNRRPDYINAFFDIINWDKVNG',
+     ]
+
+    query = 'MSFELPALPYAKDALAPHISAETIEYHYGKHHQTYVTNLNNLIKGTAFEGKSLEEIIRSSEGGVFNNAAQVWNHTFYWNCLAPNAGGEPTGKVAEAIAASFGSFADFKAQFTDAAIKNFGSGWTWLVKNSDGKLAIVSTSNAGTPLTTDATPLLTVDVWEHAYYIDYRNARPGYLEHFWALVNWEFVAKNL'
+
+    with tempfile.TemporaryDirectory() as tmp:
+        db_file = tmp + "tmp.fasta"
+
+        utils.write_sequential_fasta(db_file, input)
+        hits = utils.run_phmmer(query, db_file)
+
+    assert hits == ['2', '0', '3', '1']
