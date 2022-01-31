@@ -51,7 +51,7 @@ def main(input_h, output_h, masking_off, sampler, reference_msa_handle, delete_i
         if subset_strategy == "top_hits":
             hits = run_phmmer(seq,reference_db_path)
             _, new_alignment = generate_alignment({"1": [ renamed_reference_sequences[hit] for hit in hits[:alignment_size] ] + [seq]}) #mafft should preserve the order of sequences
-            tmp_msa_list.append(new_alignment[:-1]) #add all except the query sequence. 
+            tmp_msa_list.append(new_alignment) 
 
         else:
             if redraw:

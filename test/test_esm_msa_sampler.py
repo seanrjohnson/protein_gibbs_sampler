@@ -1,3 +1,4 @@
+import enum
 import pytest
 from pgen import models, esm_msa_sampler
 from pgen import likelihood_esm_msa
@@ -432,3 +433,37 @@ def test_likelihood_executable_top_hits(msa_sampler):
     # assert unaligned_out_n == query_name
 
     # assert unaligned_out_v == pytest.approx(aligned_out_v)
+
+@pytest.mark.parametrize("input_list,num_partitions,expected", [
+    ([1,2,3,4,5,6,7,8,9,10], 1, [[1,2,3,4,5,6,7,8,9,10]]),
+    ([1,2,3,4,5,6,7,8,9,10], 2, [[1,2,3,4,5],[6,7,8,9,10]]),
+    ([1,2,3,4,5,6,7,8,9,10], 3, [[1,2,3,4],[5,6,7],[8,9,10]]),
+    ([1,2,3,4,5,6,7,8,9,10], 4, [[1,2,3],[4,5,6],[7,8],[9,10]]),
+    ([1,2,3,4,5,6,7,8,9,10], 5, [[1,2],[3,4],[5,6],[7,8],[9,10]]),
+    ([1,2,3,4,5,6,7,8,9,10], 6, [[1,2],[3,4],[5,6],[7,8],[9],[10]]),
+    ([1,2,3,4,5,6,7,8,9,10], 7, [[1,2],[3,4],[5,6],[7],[8],[9],[10]]),
+    ([1,2,3,4,5,6,7,8,9,10], 8, [[1,2],[3,4],[5],[6],[7],[8],[9],[10]]),
+    ([1,2,3,4,5,6,7,8,9,10], 9, [[1,2],[3],[4],[5],[6],[7],[8],[9],[10]]),
+    ([1,2,3,4,5,6,7,8,9,10], 10, [[1],[2],[3],[4],[5],[6],[7],[8],[9],[10]]),
+    ([1,2,3,4,5,6,7,8,9,10], 11, [[1],[2],[3],[4],[5],[6],[7],[8],[9],[10]]),
+    ([1,2,3,4,5,6,7,8,9,10], 600, [[1],[2],[3],[4],[5],[6],[7],[8],[9],[10]]),
+])
+def test_partition_1(input_list,num_partitions,expected):
+    partitions = esm_msa_sampler.partition(input_list, num_partitions)
+
+    assert len(partitions) == len(expected)
+    for i, part in enumerate(partitions):
+        assert part == expected[i]
+
+    
+
+def test_generate_single(msa_sampler):
+    out = msa_sampler.generate_single(["AAA", "AAA", "GGG"], steps=1,passes=3,burn_in=0)
+
+    assert len(out) == 3
+    assert out == "AAA"
+
+    # assert out[0][1:3] == "AA"
+    # assert out[1][1:3] == "AC"
+    # assert out[2][1:3] == "AA"
+    # assert out[3][1:3] == "AC"

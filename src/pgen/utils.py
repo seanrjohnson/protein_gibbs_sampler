@@ -98,7 +98,7 @@ def parse_fasta(filename, return_names=False, clean=None, full_name=False):
                     if 'unalign' then convert to upper, delete ".", "*", "-"
             full_name: if True, then returns the entire name. By default only the part before the first whitespace is returned.
 
-        output: sequences or names, sequences
+        output: sequences or (names, sequences)
     """
     
     prev_len = 0

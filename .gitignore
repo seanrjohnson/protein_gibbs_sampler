@@ -145,3 +145,5 @@ generated_output/
 
 
 examples/output
+
+tmp_out/*

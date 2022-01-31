@@ -8,6 +8,28 @@ import sys
 ESM_MSA_ALLOWED_AMINO_ACIDS = "-ACDEFGHIKLMNPQRSTVWY"
 ESM_MSA_GAP_CHARACTERS = "-"  # there might be some reason to add "." to both of these constants some day.
 
+def partition(input_list, num_partitions):
+    if len(input_list) < num_partitions:
+        num_partitions = len(input_list)
+
+    out = [[] for x in range(num_partitions)]
+    
+    num_per_partition = len(input_list) // num_partitions
+    remainder = len(input_list) % num_partitions
+    
+    target_seqs_per_partition = [num_per_partition] * num_partitions
+    for i in range(remainder):
+        target_seqs_per_partition[i] += 1
+    list_i = 0
+    for v in input_list:
+        out[list_i].append(v)
+        if (len(out[list_i]) == target_seqs_per_partition[list_i]):
+            list_i += 1
+    
+    return out
+
+
+
 class ESM_MSA_sampler():
     """adapted from bert-gen bert-babble.ipynb"""
 
@@ -69,6 +91,47 @@ class ESM_MSA_sampler():
             raise (Exception("Invalid input character: " + ",".join(input_chars - valid_chars)))
         return seq
 
+    def generate_single(self, seed_msa, steps=10, passes=3, burn_in=1, target_index=-1):
+        """
+            generate a single sequence from an MSA
+            seed_msa: a list of sequences, they should be aligned and all the same length. The sequence at target_index in the list will be masked and sampled.
+            steps: in every pass, the positions in the sampled sequence will be randomly split into this many parts and they will be masked at the same time.
+            passes: how many complete passes to make over the sampled sequence.
+            burn_in: sample from the complete distribution for this many passes, then only take the highest probability amino acid for the remaining passes.
+            target_index: index of the sequence to mask and sample.
+        """
+        with torch.no_grad():
+            sequence_length = len(seed_msa[0])
+            cuda = self.cuda
+
+            positions = list(range(1,sequence_length+1)) #shift by 1 to account for cls token at beginning of sequence
+
+            batch = self.get_init_msa(seed_msa, len(seed_msa[0]), 1)
+            batch = batch.cuda() if cuda else batch
+
+            for pass_num in range(passes): # a pass is a complete pass over the sequence
+                random.shuffle(positions)
+                step_indices = partition(positions, steps)
+                for step_i in range(len(step_indices)): # a step is one forward call of the model, where a subset of the sequence has been masked
+                    #print(step_indices[step_i])
+                    self.mask_target_indexes_single(batch, step_indices[step_i], -1)
+                    #print(self.untokenize_batch(batch))
+                    # shape: (batch, sequences, sequence_len, alphabet_digits)
+                    forward_pass = self.model.model(batch)["logits"]
+                    batch_index = 0
+                    for aa_position in step_indices[step_i]: #position
+                        idx = generate_step(forward_pass[batch_index][target_index],
+                            gen_idx=aa_position, # + 1 is because of start token
+                            top_k=1, 
+                            temperature=None,
+                            sample=(pass_num < burn_in),
+                            valid_idx=self.valid_aa_idx)
+                        batch[batch_index][target_index][aa_position] = idx
+                    
+        return self.untokenize_batch(batch)[target_index]
+        
+    
+
     def generate(self, n_samples, seed_msa, batch_size=1, in_order=False, max_len=None, leader_length=0,
                  leader_length_percent=None, top_k=0, temperature=None, num_iters=10, burnin=float('inf'),
                  mask=True, num_positions=0, num_positions_percent=None, indexes=None, rollover_from_start=False,
@@ -105,7 +168,7 @@ class ESM_MSA_sampler():
 
         #TODO: repetition penalty, somehow?
         #TODO: add dilated sequential sampling, like sampling every third or fifth amino acid and then doing the whole protein in like 3 or 5 steps, or something like that.
-        #      Like we do for the masking.
+        #      Like we do for the likelihood.
         with torch.no_grad(): # I'm not sure if this no_grad is necessary or not, but it probably doesn't hurt.
 
             num_sequences = len(seed_msa)
@@ -113,7 +176,7 @@ class ESM_MSA_sampler():
 
             cuda = self.cuda
             sequences = []
-            n_batches = math.ceil(n_samples / num_sequences / batch_size)
+            n_generation_rounds = math.ceil(n_samples / num_sequences / batch_size)
 
             if num_positions_percent is not None:
                 num_positions = int(sequence_length*(num_positions_percent / 100))
@@ -128,7 +191,7 @@ class ESM_MSA_sampler():
             if max_len is None:
                 max_len = sequence_length
 
-            for batch_n in trange(n_batches, disable=(not show_progress_bar)):
+            for generation_round in trange(n_generation_rounds, disable=(not show_progress_bar)):
 
                 # shape: (batch, sequences, sequence_len)
                 batch = self.get_init_msa(seed_msa, max_len, batch_size)
@@ -151,7 +214,6 @@ class ESM_MSA_sampler():
                                                                           num_sequences)
                     else:
                         target_indexes = self.get_target_indexes_all_positions(batch_size, indexes, num_sequences)
-
                     if mask:
                         self.mask_target_indexes(batch, target_indexes)
 
@@ -161,14 +223,15 @@ class ESM_MSA_sampler():
                     for batch_index in range(batch_size): #msa
                         for sequence_index in range(num_sequences): #sequence
                             for kk in target_indexes[batch_index][sequence_index]: #position
+                                
                                 idx = generate_step(out[batch_index][sequence_index],
-                                                    gen_idx=kk,
+                                                    gen_idx=kk, # +1 is because of start token
                                                     top_k=top_k,
                                                     temperature=temperature,
                                                     sample=(ii < burnin),
                                                     valid_idx=self.valid_aa_idx)
                                 batch[batch_index][sequence_index][kk] = idx
-                if batch_n == (n_batches - 1): #last batch, so don't take all of them, just take enough to get to n_samples
+                if generation_round == (n_generation_rounds - 1): #last batch, so don't take all of them, just take enough to get to n_samples
                     sequences += self.untokenize_batch(batch)[0:n_samples - len(sequences)]
                 else:
                     sequences += self.untokenize_batch(batch)
@@ -178,12 +241,17 @@ class ESM_MSA_sampler():
         for batch_index in range(len(batch)):
             for sequence_index in range(len(batch[batch_index])):
                 for kk in target_indexes[batch_index][sequence_index]:
-                    batch[batch_index][sequence_index][kk] = self.model.alphabet.mask_idx
+                    batch[batch_index][sequence_index][kk] = self.model.alphabet.mask_idx 
+    
+    def mask_target_indexes_single(self, batch, target_indexes, seq_index):
+        for batch_index in range(len(batch)):
+            for kk in target_indexes:
+                batch[batch_index][seq_index][kk] = self.model.alphabet.mask_idx 
 
     def get_target_indexes_all_positions(self, batch_size, indexes, num_sequences):
         target_indexes = list()
         for b in range(batch_size):
-            target_indexes.append([indexes] * num_sequences)
+            target_indexes.append([indexes] * num_sequences) 
         return target_indexes
 
     def get_random_target_index(self, batch_size, indexes, num_positions, num_sequences):
