@@ -121,7 +121,7 @@ class ESM_MSA_sampler():
                     batch_index = 0
                     for aa_position in step_indices[step_i]: #position
                         idx = generate_step(forward_pass[batch_index][target_index],
-                            gen_idx=aa_position, # + 1 is because of start token
+                            gen_idx=aa_position, 
                             top_k=1, 
                             temperature=None,
                             sample=(pass_num < burn_in),
