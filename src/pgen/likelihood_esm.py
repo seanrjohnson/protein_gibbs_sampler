@@ -68,7 +68,7 @@ if __name__ == "__main__":
     if mask_distance < 1:
         raise ValueError(f"mask distance must be an integer >= 1.")
 
-    if args.masking_off and mask_distance is not None:
+    if args.masking_off and args.mask_distance is not None:
         raise ValueError(f"--masking_off and --mask_distance are both set, that doesn't make sense.")
 
     main(input_handle, output_handle, args.masking_off, args.device, args.model, args.batch_size, mask_distance)
