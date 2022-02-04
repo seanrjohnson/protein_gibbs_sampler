@@ -56,6 +56,7 @@ class ESM_MSA_sampler():
         self.model.model.to(device)
 
         self.valid_aa_idx = sorted([self.model.alphabet.get_idx(tok) for tok in ESM_MSA_ALLOWED_AMINO_ACIDS])
+        self.toks = [self.model.alphabet.get_tok(idx) for idx in self.valid_aa_idx]
 
     def untokenize_batch(self, batch): #TODO: maybe should be moved to the model class, or a model superclass?
         #convert tokens to AAs, but skip the first one, because that one is <cls>
@@ -90,6 +91,55 @@ class ESM_MSA_sampler():
         if not input_chars.issubset(valid_chars):
             raise (Exception("Invalid input character: " + ",".join(input_chars - valid_chars)))
         return seq
+
+    def probs_single(self, seed_msa, steps=10, target_index=-1, progress_bar=False):
+        """
+            calculate_probability for each position of an input sequence. runs one pass over 
+            seed_msa: a list of sequences, they should be aligned and all the same length. The sequence at target_index in the list will be masked and sampled.
+            steps: The positions in the sampled sequence will be randomly split into this many parts and they will be masked at the same time.
+            target_index: index of the sequence to mask and sample.
+        
+            returns matrix, alphabet
+            
+            where:
+                matrix is (alphabet_size * sequence size) where values are probabilities
+                and
+                alphabet is a list of len(alphabet_size) where values are the alphabet symbol at the corresponding row in the output matrix
+
+        """
+        sequence_length = len(seed_msa[0])
+        out = torch.zeros((len(self.valid_aa_idx), sequence_length))
+
+        with torch.no_grad():
+            batch_index = 0
+            cuda = self.cuda
+
+            positions = list(range(1,sequence_length+1)) #shift by 1 to account for cls token at beginning of sequence
+
+            batch = self.get_init_msa(seed_msa, len(seed_msa[0]), 1)
+            batch = batch.cuda() if cuda else batch
+            original_indexes = batch[batch_index][target_index].clone().detach()
+
+            random.shuffle(positions)
+            step_indices = partition(positions, steps)
+            
+            for step_i in trange(len(step_indices)): # a step is one forward call of the model, where a subset of the sequence has been masked
+                self.mask_target_indexes_single(batch, step_indices[step_i], -1)
+                # shape: (batch, sequences, sequence_len, alphabet_digits)
+                forward_pass = self.model.model(batch)["logits"]
+                
+                for kk, aa_position in enumerate(step_indices[step_i]): #position
+                    #torch.distributions.categorical.Categorical(logits=kth_vals)
+                    probs = torch.distributions.categorical.Categorical(logits=forward_pass[batch_index][target_index][aa_position][self.valid_aa_idx]).probs
+                    out[:,aa_position-1] = probs
+
+                batch[batch_index][target_index] = original_indexes
+                
+
+                
+        
+        self.untokenize_batch(batch)[target_index]
+        return out.numpy(), self.toks
 
     def generate_single(self, seed_msa, steps=10, passes=3, burn_in=1, target_index=-1):
         """
