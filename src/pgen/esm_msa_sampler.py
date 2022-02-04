@@ -92,12 +92,13 @@ class ESM_MSA_sampler():
             raise (Exception("Invalid input character: " + ",".join(input_chars - valid_chars)))
         return seq
 
-    def probs_single(self, seed_msa, steps=10, target_index=-1, progress_bar=False):
+    def probs_single(self, seed_msa, steps=10, target_index=-1, show_progress_bar=False):
         """
             calculate_probability for each position of an input sequence. runs one pass over 
             seed_msa: a list of sequences, they should be aligned and all the same length. The sequence at target_index in the list will be masked and sampled.
             steps: The positions in the sampled sequence will be randomly split into this many parts and they will be masked at the same time.
             target_index: index of the sequence to mask and sample.
+            show_progress_bar: if True then a progress bar will be updated in the console.
         
             returns matrix, alphabet
             
@@ -123,7 +124,7 @@ class ESM_MSA_sampler():
             random.shuffle(positions)
             step_indices = partition(positions, steps)
             
-            for step_i in trange(len(step_indices)): # a step is one forward call of the model, where a subset of the sequence has been masked
+            for step_i in trange(len(step_indices), disable=(not show_progress_bar)): # a step is one forward call of the model, where a subset of the sequence has been masked
                 self.mask_target_indexes_single(batch, step_indices[step_i], -1)
                 # shape: (batch, sequences, sequence_len, alphabet_digits)
                 forward_pass = self.model.model(batch)["logits"]

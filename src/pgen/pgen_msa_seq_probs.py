@@ -26,7 +26,7 @@ def pgen_msa(msa, outpath, steps, device, model):
     if steps == None:
         steps = len(msa[-1])
 
-    probs, toks = gibbs_sampler.probs_single(msa, steps=steps)
+    probs, toks = gibbs_sampler.probs_single(msa, steps=steps, show_progress_bar=True)
 
     consensus = [toks[i] for i in np.argmax(probs,axis=0)]
     position=[i+1 for i in range(len(msa[-1]))]
