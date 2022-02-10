@@ -237,7 +237,7 @@ def write_partitioned_fasta(path, sequences):
             for i, seq in enumerate(seqs):
                 print(f">{category}_{i}\n{seq}",file=fasta_out)
 
-def generate_alignment(sequences):
+def generate_alignment(sequences, ep=0.0, op=1.53):
     """
         uses mafft to align sequences.
         
@@ -252,7 +252,7 @@ def generate_alignment(sequences):
         tmp_fasta_path =  tmp + "/tmp.fasta" #str((Path(tmp_dir) / str(uuid.uuid4())).with_suffix(".fasta"))
         # tmp_fasta_out_path = str((Path(tmp_dir) / str(uuid.uuid4())).with_suffix(".fasta"))
         write_partitioned_fasta(tmp_fasta_path,sequences)
-        align_out = subprocess.run(['mafft', '--thread', '8', '--maxiterate', '1000', '--globalpair', tmp_fasta_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        align_out = subprocess.run(['mafft', '--thread', '8', '--maxiterate', '1000', '--globalpair', "--ep", str(ep), "--op", str(op), tmp_fasta_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         try:
             align_out.check_returncode()
         except:

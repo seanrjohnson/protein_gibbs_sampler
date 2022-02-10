@@ -13,7 +13,7 @@ import warnings
 model_map = {"esm_msa1":models.ESM_MSA1}
 
 
-def pgen_msa(templates_path, references_path, output_path, seqs_per_template, keep_identical, steps, passes, burn_in, device, model, alignment_size):
+def pgen_msa(templates_path, references_path, output_path, seqs_per_template, keep_identical, steps, passes, burn_in, device, model, alignment_size, ep, op, top_k):
     clean_flag = 'unalign'
 
     template_seqs = list(zip(*parse_fasta(templates_path, clean=clean_flag, return_names=True)))
@@ -47,10 +47,10 @@ def pgen_msa(templates_path, references_path, output_path, seqs_per_template, ke
                 if len(unaligned_seqs) < alignment_size:
                     warnings.warn(f"Warning: fewer than {alignment_size -1} hits found for template seq {template_name}")
 
-                _, new_alignment = generate_alignment({"1": unaligned_seqs}) #mafft should preserve the order of sequences
+                _, new_alignment = generate_alignment({"1": unaligned_seqs}, ep=ep, op=op) #mafft should preserve the order of sequences
                 
                 for i in range(seqs_per_template):
-                    new_seq = gibbs_sampler.generate_single(new_alignment, steps=steps, passes=passes, burn_in=burn_in)
+                    new_seq = gibbs_sampler.generate_single(new_alignment, steps=steps, passes=passes, burn_in=burn_in, k=top_k)
                     new_seq = new_seq.replace("-","")
                     print(f">{i}_{template_name}\n{new_seq}", file=outfile, flush=True)
                     pbar.update(1)
@@ -69,6 +69,10 @@ def main(argv):
     parser.add_argument("--steps", type=int, default=10, help="Randomly assign the input positions to this many mask bins pass, and mask and generate over one bin at a time.")
     parser.add_argument("--passes", type=int, default=3, help="how many passes over the entire template sequence to make.")
     parser.add_argument("--burn_in", type=int, default=1, help="A number of passes equal to burn_in will sample from the entire distribution, after which only the highest probability aa will be selected.")
+    parser.add_argument("--top_k", type=int, default=1, help="Sample from the this many of the most probable amino acids, after burn in.")
+
+    parser.add_argument("--ep", type=float, default=0.0, help="ep parameter passed to MAFFT for alignments")
+    parser.add_argument("--op", type=float, default=1.53, help="op parameter passed to MAFFT for alignments")
 
     parser.add_argument("--device", type=str, default="cpu", choices={"cpu","gpu"}, help="cpu or gpu")
     parser.add_argument("--model", type=str, default="esm_msa1", choices={"esm_msa1"}, help="which model to use")
@@ -76,7 +80,7 @@ def main(argv):
 
     args = parser.parse_args(argv)
 
-    pgen_msa(args.templates, args.references, args.o, args.seqs_per_template, args.keep_identical, args.steps, args.passes, args.burn_in, args.device, args.model, args.alignment_size)
+    pgen_msa(args.templates, args.references, args.o, args.seqs_per_template, args.keep_identical, args.steps, args.passes, args.burn_in, args.device, args.model, args.alignment_size, args.ep, args.op, args.top_k)
 
 if __name__ == "__main__":
     main(sys.argv[1:])

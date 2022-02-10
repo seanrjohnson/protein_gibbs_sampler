@@ -142,7 +142,7 @@ class ESM_MSA_sampler():
         self.untokenize_batch(batch)[target_index]
         return out.numpy(), self.toks
 
-    def generate_single(self, seed_msa, steps=10, passes=3, burn_in=1, target_index=-1):
+    def generate_single(self, seed_msa, steps=10, passes=3, burn_in=1, target_index=-1, k=1):
         """
             generate a single sequence from an MSA
             seed_msa: a list of sequences, they should be aligned and all the same length. The sequence at target_index in the list will be masked and sampled.
@@ -173,7 +173,7 @@ class ESM_MSA_sampler():
                     for aa_position in step_indices[step_i]: #position
                         idx = generate_step(forward_pass[batch_index][target_index],
                             gen_idx=aa_position, 
-                            top_k=1, 
+                            top_k=k, 
                             temperature=None,
                             sample=(pass_num < burn_in),
                             valid_idx=self.valid_aa_idx)
