@@ -15,11 +15,14 @@ model_map = {"esm_msa1": models.ESM_MSA1}
 
 
 
-def main(input_h, output_h, masking_off, sampler, reference_msa_handle, delete_insertions, batch_size, subset_strategy, alignment_size, subset_random_seed=None, redraw=False, unaligned_queries=False, count_gaps=False, mask_distance=float("inf")):
+def main(input_h, output_h, masking_off, sampler, reference_msa_handle, delete_insertions, batch_size, subset_strategy, alignment_size, subset_random_seed=None, redraw=False, unaligned_queries=False, count_gaps=False, mask_distance=float("inf"), csv=False):
     clean_flag = 'upper'
     if delete_insertions:
         clean_flag = 'delete'
 
+    sep="\t"
+    if csv:
+        sep=","
 
     in_seqs = list(zip(*parse_fasta(input_h, return_names=True, clean=clean_flag)))
     reference_msa = parse_fasta(reference_msa_handle, clean=clean_flag)
@@ -42,7 +45,7 @@ def main(input_h, output_h, masking_off, sampler, reference_msa_handle, delete_i
     tmp_msa_list = list()
 
     
-
+    print(f"id{sep}esm-msa", file=output_h)
 
     for i in tqdm.trange(len(in_seqs)):
         name, seq = in_seqs[i]
@@ -68,7 +71,7 @@ def main(input_h, output_h, masking_off, sampler, reference_msa_handle, delete_i
             #TODO: batching is a little weird still because it used to be solely based on len(tmp_msa_list), but now batch size is independent of len(tmp_msa_list)
             scores = sampler.log_likelihood_batch(tmp_msa_list, with_masking=not masking_off, count_gaps=count_gaps, mask_distance=mask_distance, batch_size=batch_size)
             for j in range(len(scores)):
-                print(f"{tmp_name_list[j]}\t{scores[j]}", file=output_h)
+                print(f"{tmp_name_list[j]}{sep}{scores[j]}", file=output_h)
             output_h.flush()
             tmp_msa_list = list()
             tmp_name_list = list()
@@ -101,6 +104,7 @@ if __name__ == "__main__":
     parser.add_argument("--unaligned_queries",  action='store_true', default=False, help="If the input sequences are unaligned or come from a different alignment than the reference msa, then use muscle profile to add each sequence to the reference alignment.")
     parser.add_argument("--count_gaps",  action='store_true', default=False, help="If true then average the log likelihoods over the coding positions as well as the gap positions. By default, gap positions are not considered in the sums and averages.")
     parser.add_argument("--mask_distance",  type=int, default=None, help="If set, then multiple positions will be masked at a time, with (mask_distance - 1) non-masked positions between each masked position. This will make the likelihood calculations faster. Default: mask positions one at a time.")
+    parser.add_argument("--csv",  action='store_true', default=False, help="If set, then output will be a csv file.")
 
 
     args = parser.parse_args()
@@ -130,7 +134,7 @@ if __name__ == "__main__":
     reference_msa_handle = open(args.reference_msa, "r")
     
     sampler = ESM_MSA_sampler(model_map[args.model](), device=args.device)
-    main(input_handle, output_handle, args.masking_off, sampler, reference_msa_handle, args.delete_insertions, args.batch_size, args.subset_strategy, args.alignment_size, args.subset_random_seed, args.redraw, args.unaligned_queries, args.count_gaps, mask_distance)
+    main(input_handle, output_handle, args.masking_off, sampler, reference_msa_handle, args.delete_insertions, args.batch_size, args.subset_strategy, args.alignment_size, args.subset_random_seed, args.redraw, args.unaligned_queries, args.count_gaps, mask_distance, args.csv)
 
     reference_msa_handle.close()
     if args.i is not None:
