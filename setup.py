@@ -3,7 +3,7 @@ from os.path import basename, splitext
 from setuptools import setup, find_packages
 # from distutils.core import setup, find_packages
 
-requirements = ['torch~=1.9.0', 'fair-esm~=0.4.0', 'pytest', 'tqdm']
+requirements = ['torch~=1.9.0', 'fair-esm~=0.4.2', 'pytest', 'tqdm']
 setup(
     name="pgen",
     version="0.2.2",

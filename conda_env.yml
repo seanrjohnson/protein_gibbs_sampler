@@ -19,6 +19,6 @@ dependencies:
   - pytest
   - pytest-datadir
   - pip:
-    - fair-esm~=0.4.0
+    - fair-esm~=0.4.2
     - -e .
 
