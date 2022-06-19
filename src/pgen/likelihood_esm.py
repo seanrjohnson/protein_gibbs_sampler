@@ -11,7 +11,7 @@ import math
 
 model_map = {"esm1b":models.ESM1b, "esm6":models.ESM6, "esm12":models.ESM12, "esm34":models.ESM34, "esm1v":models.ESM1v}
 
-def main(input_h, output_h, masking_off, device, model, batch_size, mask_distance, csv):
+def main(input_h, output_h, masking_off, device, model, batch_size, mask_distance, csv, score_name):
 
     sampler = ESM_sampler(model_map[model](),device=device)
     
@@ -21,7 +21,11 @@ def main(input_h, output_h, masking_off, device, model, batch_size, mask_distanc
     if csv:
         sep=","
 
-    print(f"id{sep}{model}", file=output_h)
+    
+    if score_name is None:
+        score_name = model
+
+    print(f"id{sep}{score_name}", file=output_h)
     tmp_seq_list = list()
     tmp_name_list = list()
     for i in tqdm.trange(len(in_seqs)):
@@ -55,6 +59,7 @@ if __name__ == "__main__":
     parser.add_argument("--mask_distance",  type=int, default=None, help="If set, then multiple positions will be masked at a time, with (mask_distance - 1) non-masked positions between each masked position. This will make the likelihood calculations faster. Default: mask positions one at a time.")
     parser.add_argument("--model", type=str, default="esm1v", choices={"esm1b", "esm6", "esm12", "esm34", "esm1v"}, help="Which model to use.")
     parser.add_argument("--csv",  action='store_true', default=False, help="If set, then output will be a csv file.")
+    parser.add_argument("--score_name",  type=str, default=None, help="For csv output, what to put as the second column name.")
 
     args = parser.parse_args()
 
@@ -77,7 +82,7 @@ if __name__ == "__main__":
     if args.masking_off and args.mask_distance is not None:
         raise ValueError(f"--masking_off and --mask_distance are both set, that doesn't make sense.")
 
-    main(input_handle, output_handle, args.masking_off, args.device, args.model, args.batch_size, mask_distance, args.csv)
+    main(input_handle, output_handle, args.masking_off, args.device, args.model, args.batch_size, mask_distance, args.csv, args.score_name)
 
     if args.i is not None:
         input_handle.close()

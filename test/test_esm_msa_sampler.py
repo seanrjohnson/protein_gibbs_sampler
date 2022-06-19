@@ -329,6 +329,9 @@ def test_likelihood_executable_no_mask(msa_sampler, msa_batch_example, input_ind
     likelihood_esm_msa.main(input_handle, output_handle, masking_off=mask_off, sampler=msa_sampler, mask_distance=mask_distance,
         reference_msa_handle=alignment_handle, delete_insertions=False, batch_size=1, subset_strategy="in_order",alignment_size=4)
     output_handle.seek(0)
+    name, score = output_handle.readline().split()
+    assert name == "id"
+    assert score == "esm-msa"
     out_n, out_v = output_handle.readline().split()
     out_v = float(out_v)
     assert out_n == input_name
@@ -362,11 +365,17 @@ def test_likelihood_executable_realign(msa_sampler):
     likelihood_esm_msa.main(unaligned_input_handle, unaligned_output_handle, masking_off=True, sampler=msa_sampler,
         reference_msa_handle=alignment_handle, delete_insertions=False, batch_size=1, subset_strategy="in_order",alignment_size=4, unaligned_queries=True)
     unaligned_output_handle.seek(0)
+    aligned_out_n, aligned_out_v = aligned_output_handle.readline().split()
+    assert aligned_out_n == "id"
+    assert aligned_out_v == "esm-msa"
 
     aligned_out_n, aligned_out_v = aligned_output_handle.readline().split()
     aligned_out_v = float(aligned_out_v)
     assert aligned_out_n == query_name
 
+    unaligned_out_n, unaligned_out_v = unaligned_output_handle.readline().split()
+    assert unaligned_out_n == "id"
+    assert unaligned_out_v == "esm-msa"
     unaligned_out_n, unaligned_out_v = unaligned_output_handle.readline().split()
     unaligned_out_v = float(unaligned_out_v)
     assert unaligned_out_n == query_name

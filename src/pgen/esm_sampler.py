@@ -288,7 +288,7 @@ class ESM_sampler():
         if batch_size is None:
             batch_size = n_batches
 
-        reformatted_seq = [(str(idx), list(self.clean_seed_seq(seq))) for idx, seq in enumerate(seq_list)]
+        reformatted_seq = [(str(idx), self.clean_seed_seq(seq)) for idx, seq in enumerate(seq_list)]
         _, _, tokens = self.model.batch_converter(reformatted_seq)
 
         range_start = 1 if self.model.alphabet.prepend_bos else 0
@@ -313,7 +313,7 @@ class ESM_sampler():
 
                     original_string = reformatted_seq[seq_idx][1]
                     num_sequences_to_process = int(min(mask_distance, len(original_string)))
-                    all_samples_for_seq = [(idx, original_string.copy()) for idx, seq in enumerate(range(num_sequences_to_process))]
+                    all_samples_for_seq = [(idx, original_string) for idx, seq in enumerate(range(num_sequences_to_process))]
 
                     _, _, tokens_for_seq = self.model.batch_converter(all_samples_for_seq)
 
