@@ -416,7 +416,6 @@ def test_log_likelihood_count_gaps(msa_sampler):
     no_gaps = msa_sampler.log_likelihood(input_aln, target_index=4, with_masking=False, count_gaps=False)
     gaps = msa_sampler.log_likelihood(input_aln, target_index=4, with_masking=False, count_gaps=True)
 
-    print(no_gaps)
     # adding gaps to the calculation should improve (make closer to zero) the score because they should be pretty predictable from the neighboring gaps.
     assert no_gaps < gaps
 

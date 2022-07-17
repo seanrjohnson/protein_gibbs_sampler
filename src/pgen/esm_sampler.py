@@ -102,16 +102,16 @@ class ESM_sampler():
 
 
 
-        if isinstance(seed_seq, list):
+        if isinstance(seed_seq, list): # input is an array, convert it to a string
             batch = random.choices(seed_seq, k=batch_size)
             for i, seed in enumerate(batch):
                 remaining_len = max_len - len(seed)
-                batch[i] = (str(i), list(self.clean_seed_seq(seed)) + ["<mask>"] * remaining_len)
+                batch[i] = (str(i), self.clean_seed_seq(seed) + "<mask>" * remaining_len)
 
         elif isinstance(seed_seq, str):
             remaining_len = max_len - len(seed_seq)
-            seed_seq = [x for x in self.clean_seed_seq(seed_seq)] #if input is a string, convert it to an array
-            batch = [(str(i), seed_seq + ["<mask>"] * remaining_len) for i in range(batch_size)]
+            seed_seq = self.clean_seed_seq(seed_seq)
+            batch = [(str(i), seed_seq + "<mask>" * remaining_len) for i in range(batch_size)]
 
         else:
             raise (Exception("seed sequence should either be a string or list"))

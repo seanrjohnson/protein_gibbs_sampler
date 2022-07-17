@@ -13,67 +13,24 @@ git clone https://github.com/seanrjohnson/protein_gibbs_sampler.git
 cd protein_gibbs_sampler
 ```
 
-Then install either through conda or Docker
+Then install either through conda
 
 ### Conda/Pip
 
-Make a clean new Conda environment
+Make a new conda environment called `protein_gibbs_sampler`
 ```bash
-conda create -n protein_gibbs_sampler python~=3.8
-conda activate protein_gibbs_sampler
-```
-
-Install this package and its prereqs with pip
-```bash
-pip install -e .
-```
-
-If you want to run esm-msa metrics on sequences that are not aligned to the reference alignment, you will also need muscle
-```bash
-conda install -c bioconda muscle
+conda env create --name protein_gibbs_sampler -f conda_env.yml
 ```
 
 Test the install
 ```bash
+conda activate protein_gibbs_sampler
 pytest .
 ```
 
-If you have CUDA installed, everything should pass, otherwise there will be one skipped test.
+If you have a CUDA compatible GPU, everything should pass, otherwise there will be one skipped test.
 
 Running the tests for the first time might take a while because model weights need to be downloaded.
-
-### Docker
-
-Setup container environment:
-
-```bash
-# From root of this repo
-# Create container -- starts container running in detached mode and root of 
-# 	repo mounted to /workspace in the container
-make run-cpu # cpu-only
-# make run # GPU pass through
-
-# Attach to container
-make attach
-
-# ---Runnining inside container---
-# Pip install the source for this package
-pip install -e .
-
-# install muscle in the container (optional)
-conda install -c bioconda muscle
-
-```
-
-Additional Commands:
-
-```bash
-# Additional Commands
-make start
-make stop
-make shell
-make remove
-```
 
 ## Generating new protein sequences from the command line
 

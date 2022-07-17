@@ -78,8 +78,7 @@ class ESM_MSA_sampler():
             seq = self.clean_seed_seq(seq)
 
             remaining_len = max_len - len(seq)
-            seq = list(seq)  # if input is a string, convert it to an array
-            padded_msa.append((str(i), seq + ["<mask>"] * remaining_len))
+            padded_msa.append((str(i), seq + "<mask>" * remaining_len))
 
         labels, strs, tokens = self.model.batch_converter([padded_msa] * batch_size)
         return tokens
@@ -216,7 +215,6 @@ class ESM_MSA_sampler():
                     ]
             #TODO: add some specific examples
         """
-
 
         #TODO: repetition penalty, somehow?
         #TODO: add dilated sequential sampling, like sampling every third or fifth amino acid and then doing the whole protein in like 3 or 5 steps, or something like that.
