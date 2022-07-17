@@ -86,7 +86,7 @@ def main(input_h, output_h, masking_off, sampler, reference_msa_handle, delete_i
                             if char != '-':
                                 degapped_positional_scores.append(positional_scores[seq_idx])
                         positional_scores = degapped_positional_scores
-                    print(f"{tmp_name_list[j]}{sep}{POSITIONAL_SCORE_SEP.join(positional_scores)}", file=positionwise_h)
+                    print(f"{tmp_name_list[j]}{sep}{POSITIONAL_SCORE_SEP.join([str(round(x,3) ) for x in positional_scores])}", file=positionwise_h)
             output_h.flush()
             if positionwise_h is not None:
                 positionwise_h.flush()

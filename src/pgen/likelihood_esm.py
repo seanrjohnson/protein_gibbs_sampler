@@ -42,7 +42,7 @@ def main(input_h, output_h, masking_off, device, model, batch_size, mask_distanc
             for j, (score, positional_scores) in enumerate(scores_iter):
                 print(f"{tmp_name_list[j]}{sep}{score}", file=output_h)
                 if positionwise_h is not None:
-                    print(f"{tmp_name_list[j]}{sep}{POSITIONAL_SCORE_SEP.join(positional_scores)}", file=positionwise_h)
+                    print(f"{tmp_name_list[j]}{sep}{POSITIONAL_SCORE_SEP.join([str(round(x,3)) for x in positional_scores])}", file=positionwise_h)
             
             output_h.flush()
             if positionwise_h is not None:

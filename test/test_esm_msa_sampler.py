@@ -5,6 +5,8 @@ from pgen import models, esm_msa_sampler
 from pgen import likelihood_esm_msa
 from io import StringIO
 from pgen.esm_msa_sampler import ESM_MSA_ALLOWED_AMINO_ACIDS
+import tempfile
+import pandas as pd
 
 ####### Fixtures #######
 
@@ -345,18 +347,25 @@ def test_likelihood_executable_no_mask(msa_sampler, msa_batch_example, input_ind
     input_handle = StringIO(reference_sequence)
     msa_string = "\n".join([f">{n}\n{s}" for n,s in enumerate(msa_batch_example[input_index][:-1]) ]) + "\n"
     alignment_handle = StringIO(msa_string)
+    seqlen = len(msa_batch_example[input_index][-1])
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        output_handle = StringIO()
+        # tmpdirname = "tmp_out"
+        positionwise_output_path = tmpdirname + "/positionwise_output.tsv"
+        likelihood_esm_msa.main(input_handle, output_handle, masking_off=mask_off, sampler=msa_sampler, mask_distance=mask_distance,
+            reference_msa_handle=alignment_handle, delete_insertions=False, batch_size=1, subset_strategy="in_order",alignment_size=4,positionwise=positionwise_output_path)
+        output_handle.seek(0)
+        name, score = output_handle.readline().split()
+        assert name == "id"
+        assert score == "esm-msa"
+        out_n, out_v = output_handle.readline().split()
+        out_v = float(out_v)
+        assert out_n == input_name
+        assert out_v == pytest.approx(expected)
 
-    output_handle = StringIO()
-    likelihood_esm_msa.main(input_handle, output_handle, masking_off=mask_off, sampler=msa_sampler, mask_distance=mask_distance,
-        reference_msa_handle=alignment_handle, delete_insertions=False, batch_size=1, subset_strategy="in_order",alignment_size=4)
-    output_handle.seek(0)
-    name, score = output_handle.readline().split()
-    assert name == "id"
-    assert score == "esm-msa"
-    out_n, out_v = output_handle.readline().split()
-    out_v = float(out_v)
-    assert out_n == input_name
-    assert out_v == pytest.approx(expected)
+        poswise_output = open(positionwise_output_path).readlines()
+        assert len(poswise_output) == 2
+        assert len(poswise_output[1].split()[1].split(";")) == seqlen
 
 
 # TODO: this is not a great test.
