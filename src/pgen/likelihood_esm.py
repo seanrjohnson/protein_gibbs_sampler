@@ -30,6 +30,8 @@ def main(input_h, output_h, masking_off, device, model, batch_size, mask_distanc
         score_name = model
 
     print(f"id{sep}{score_name}", file=output_h)
+    if positionwise_h is not None:
+        print(f"id{sep}{score_name}", file=positionwise_h)
     tmp_seq_list = list()
     tmp_name_list = list()
     for i in tqdm.trange(len(in_seqs)):
