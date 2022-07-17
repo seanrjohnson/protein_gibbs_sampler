@@ -1,3 +1,4 @@
+from typing import Iterator, List, Tuple
 import torch
 import math
 import random
@@ -267,7 +268,7 @@ class ESM_sampler():
         return indexes, last_i
 
 
-    def log_likelihood(self, seq, with_masking=True, verbose=False, mask_distance=float("inf"), batch_size=None):
+    def log_likelihood(self, seq, with_masking=True, verbose=False, mask_distance=float("inf"), batch_size=None) -> Tuple[float,List[float]]:
         """
             seq: a protein sequence string
             with_masking: if True, then iterate over the sequence masking one position at a time and summing the log likelihoods of the correct choice at the masked positions.
@@ -275,9 +276,10 @@ class ESM_sampler():
             mask_distance: For optimization, when masking individual positions, the distance between masked positions in the same execution, by default only one position is masked per model call.
             batch_size: number of MSAs to run on the gpu at once, if None, then batch_size=len(msa_list). default=None.
         """
-        return self.log_likelihood_batch([seq], with_masking, verbose, mask_distance, batch_size)[0]
+        return next(self.log_likelihood_batch([seq], with_masking, verbose, mask_distance, batch_size))
 
-    def log_likelihood_batch(self, seq_list, with_masking=True, verbose=False, mask_distance=float("inf"), batch_size=None):
+    #TODO: convert to iterator
+    def log_likelihood_batch(self, seq_list, with_masking=True, verbose=False, mask_distance=float("inf"), batch_size=None) -> Iterator[Tuple[float,List[float]]]:
 
         # TODO: Allow batching to calculate likelihoods for multiple sequences at a time (how does padding effect likelihoods for sequences shorter than the longest sequence, hopefully not at all).
 
@@ -306,10 +308,10 @@ class ESM_sampler():
         with torch.no_grad():
             if with_masking:
                 old_toks = tokens.clone().detach()
-                results = []
 
                 for seq_idx in range(len(reformatted_seq)):
                     likelihood_sum = 0.0
+                    likelihood_list = list()
 
                     original_string = reformatted_seq[seq_idx][1]
                     num_sequences_to_process = int(min(mask_distance, len(original_string)))
@@ -334,21 +336,22 @@ class ESM_sampler():
                         for i_sample in range(token_probs.shape[0]):
                             for idx_pos in range(range_start, batch_range_end[seq_idx]):
                                 if (idx_pos - range_start) % num_sequences_to_process == (i_sample + batch_start):
-                                    likelihood_sum += token_probs[
-                                        i_sample, idx_pos, old_toks[seq_idx, idx_pos].item()]
+                                    likelihood = token_probs[i_sample, idx_pos, old_toks[seq_idx, idx_pos].item()]
+                                    likelihood_sum += likelihood
+                                    likelihood_list.append(likelihood.item())
                                     counted_idx.add(idx_pos)
 
                     assert len(counted_idx) == len(seq_list[seq_idx]), sorted(counted_idx)
 
-                    results.append(float(likelihood_sum / len(seq_list[seq_idx])))
-
-                return results
+                    yield (float(likelihood_sum / len(seq_list[seq_idx])), likelihood_list)
 
             else:  # no masking, so we just need to calculate a single forward pass on the unmasked model
-                log_likelihood_sum = [0 for _ in range(n_batches)]
                 token_probs = torch.log_softmax(self.model.model(tokens)['logits'], dim=-1)
                 for batch_idx in range(n_batches):
+                    log_likelihood_sum = 0.0
+                    log_likelihood_list = []
                     for idx in range(range_start, batch_range_end[batch_idx]):
-                        log_likelihood_sum[batch_idx] += token_probs[batch_idx, idx, tokens[batch_idx, idx].item()]
-
-                return [float(l_sum / len(seq_list[idx])) for idx, l_sum in enumerate(log_likelihood_sum)]
+                        likelihood = token_probs[batch_idx, idx, tokens[batch_idx, idx].item()]
+                        log_likelihood_sum += likelihood
+                        log_likelihood_list.append(likelihood.item())
+                    yield (float(log_likelihood_sum / len(seq_list[batch_idx])), log_likelihood_list)

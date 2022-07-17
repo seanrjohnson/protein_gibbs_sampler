@@ -28,14 +28,14 @@ Install this package and its prereqs with pip
 pip install -e .
 ```
 
-Test the install
-```bash
-pytest .
-```
-
 If you want to run esm-msa metrics on sequences that are not aligned to the reference alignment, you will also need muscle
 ```bash
 conda install -c bioconda muscle
+```
+
+Test the install
+```bash
+pytest .
 ```
 
 If you have CUDA installed, everything should pass, otherwise there will be one skipped test.
@@ -59,6 +59,10 @@ make attach
 # ---Runnining inside container---
 # Pip install the source for this package
 pip install -e .
+
+# install muscle in the container (optional)
+conda install -c bioconda muscle
+
 ```
 
 Additional Commands:
@@ -73,7 +77,7 @@ make remove
 
 ## Generating new protein sequences from the command line
 
-This package contains three command line programs to make it easy to generate new sequences.
+This package contains four command line programs to make it easy to generate new sequences.
 For good performance, it is recommended to use GPU, but they will still run on a CPU, just excruciatingly slow for everything but small proteins.
 
 ### pgen_esm.py
@@ -93,9 +97,23 @@ pgen_esm.py -o pgen_out -i pgen_esm_input.tsv --num_output_sequences 10
 For detailed help:
 `pgen_esm.py -h`
 
+### pgen_esm_from_fasta.py
+
+Like `pgen_esm.py` except that the seed sequences come from fasta files, instead of being defined in the sampler arguments. The sequences in the fasta can either be aligned or unaligned. If they are aligned, then gaps will be removed before sampling, but setting `--keep_gap_positions` will add the gaps back in after sampling. If the fasta contains more than one sequence, then a random sequence will be selected for each round of sampling.
+
+```bash
+pgen_esm_from_fasta.py -o pgen_from_fasta_out -i pgen_msa_input.tsv --num_output_sequences 10 --keep_gap_positions
+```
+
+For detailed help:
+`pgen_esm_from_fasta.py -h`
+
+
 ### pgen_msa.py
 
 Given a seed msa, uses esm-msa to generate new sequences.
+
+This program will randomly mask and resample across the entire MSA.
 
 #### fasta_input1.fasta
 ```fasta
@@ -130,16 +148,48 @@ pgen_msa.py -o pgen_msa_out -i pgen_esm_msa_input.tsv --num_output_sequences 10
 For detailed help:
 `pgen_msa.py -h`
 
-### pgen_esm_from_fasta.py
+### pgen_msa_revised.py
 
-Like `pgen_esm.py` except that the seed sequences come from fasta files, instead of being defined in the sampler arguments. The sequences in the fasta can either be aligned or unaligned. If they are aligned, then gaps will be removed before sampling, but setting `--keep_gap_positions` will add the gaps back in after sampling. If the fasta contains more than one sequence, then a random sequence will be selected for each round of sampling.
+This program will randomly mask and resample a single sequence from the MSA. It can also generate new MSAs from a the top phmmer hits in a list of reference sequences.
+
+example
 
 ```bash
-pgen_esm_from_fasta.py -o pgen_from_fasta_out -i pgen_msa_input.tsv --num_output_sequences 10 --keep_gap_positions
+pgen_msa_revised.py --templates list_of_sequences_to_resample.fasta --references large_list_of_reference_sequences.fasta -o MDH_generated_20220130_aln32_p3_b2.fasta --device gpu --alignment_size 32 --passes 3 --burn_in 2
 ```
 
-For detailed help:
-`pgen_esm_from_fasta.py -h`
+For detailed help and additional options:
+`pgen_msa_revised.py -h`
+
+## Calculating sequence probabilities
+
+ESM and ESM-MSA models can be used to assign probabilities to protein sequences and individual positions within protein sequences
+
+### likelihood_esm.py
+
+Use the single-sequence ESM models to calculate sequence likelihoods.
+
+```bash
+likelihood_esm.py -i {input} -o {output} --model esm1v --csv --device gpu --score_name esm1v-mask6 --mask_distance 6 --positionwise positionwise_sequence_probabilities.csv
+```
+
+For detailed help and additional options:
+`likelihood_esm.py -h`
+
+### likelihood_esm_msa.py
+
+Use the mutliple sequence alignment ESM model to calculate sequence likelihoods.
+
+We have noticed that the probability scores from ESM-MSA are best from partially masked sequences. Masking the entire target sequence works very poorly. Not masking any positions gives higher than expected scores for highly divergent targets.
+
+
+Note that in some cases `--reference_msa` can actually be an unaligned fasta file, because the sequences may be re-aligned at runtime, depending on the `subset_strategy`.
+
+```bash
+likelihood_esm_msa.py -i seqs_to_calculate_probabilities_for.fasta -o whole_sequence_probabilities.csv --reference_msa reference_sequences.fasta --device gpu --subset_strategy top_hits --alignment_size 31 --count_gaps --mask_distance 6 --csv --positionwise positionwise_sequence_probabilities.csv
+```
+For detailed help and additional options:
+`likelihood_esm_msa.py -h`
 
 
 ## References
@@ -193,22 +243,3 @@ This repository represents work building on related resources as cited below.
 }
 ```
 
-### ProTrans
-
-[Github](https://github.com/agemagician/ProtTrans)
-
-[Paper](https://www.biorxiv.org/content/10.1101/2020.07.12.199554v2)
-
-```bibtex
-@article {Elnaggar2020.07.12.199554,
-	author = {Elnaggar, Ahmed and Heinzinger, Michael and Dallago, Christian and Rehawi, Ghalia and Wang, Yu and Jones, Llion and Gibbs, Tom and Feher, Tamas and Angerer, Christoph and Steinegger, Martin and BHOWMIK, DEBSINDHU and Rost, Burkhard},
-	title = {ProtTrans: Towards Cracking the Language of Life{\textquoteright}s Code Through Self-Supervised Deep Learning and High Performance Computing},
-	elocation-id = {2020.07.12.199554},
-	year = {2020},
-	doi = {10.1101/2020.07.12.199554},
-	publisher = {Cold Spring Harbor Laboratory},
-	URL = {https://www.biorxiv.org/content/early/2020/07/21/2020.07.12.199554},
-	eprint = {https://www.biorxiv.org/content/early/2020/07/21/2020.07.12.199554.full.pdf},
-	journal = {bioRxiv}
-}
-```

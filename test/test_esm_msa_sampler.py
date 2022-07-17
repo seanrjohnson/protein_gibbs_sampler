@@ -1,4 +1,5 @@
 import enum
+from statistics import mean
 import pytest
 from pgen import models, esm_msa_sampler
 from pgen import likelihood_esm_msa
@@ -241,48 +242,64 @@ def msa_batch_example():
 
 
 def test_likelihood_without_masking(msa_sampler, msa_batch_example):
-    assert msa_sampler.log_likelihood(msa_batch_example[0], target_index=4, with_masking=False) == pytest.approx(-0.06248655170202255)
-    assert msa_sampler.log_likelihood(msa_batch_example[1], target_index=4, with_masking=False) == pytest.approx(-0.1334836632013321)
+    (seq_prob, pos_probs) = msa_sampler.log_likelihood(msa_batch_example[0], target_index=4, with_masking=False)
+    assert seq_prob == pytest.approx(-0.06248655170202255)
+    assert mean(pos_probs) == pytest.approx(seq_prob)
+
+    (seq_prob, pos_probs) = msa_sampler.log_likelihood(msa_batch_example[1], target_index=4, with_masking=False)
+    assert seq_prob == pytest.approx(-0.1334836632013321)
+    assert mean(pos_probs) == pytest.approx(seq_prob)
 
 
 def test_likelihood_with_individual_masking(msa_sampler, msa_batch_example):
-    assert msa_sampler.log_likelihood(msa_batch_example[0], target_index=4, with_masking=True) == pytest.approx(
-        -0.738074004650116)
-    assert msa_sampler.log_likelihood(msa_batch_example[1], target_index=4, with_masking=True) == pytest.approx(
-        -0.876354455947876)
+    (seq_prob, pos_probs) = msa_sampler.log_likelihood(msa_batch_example[0], target_index=4, with_masking=True)
+    assert seq_prob == pytest.approx(-0.738074004650116)
+    assert mean(pos_probs) == pytest.approx(seq_prob)
+    
+    (seq_prob, pos_probs)  = msa_sampler.log_likelihood(msa_batch_example[1], target_index=4, with_masking=True)
+    assert seq_prob == pytest.approx(-0.876354455947876)
+    assert mean(pos_probs) == pytest.approx(seq_prob)
 
 
 def test_likelihood_with_masking_entire_sequence(msa_sampler, msa_batch_example):
-    assert msa_sampler.log_likelihood(msa_batch_example[0], target_index=4, with_masking=True,
-                                      mask_distance=1) == pytest.approx(-2.3227384090423584)
-    assert msa_sampler.log_likelihood(msa_batch_example[1], target_index=4, with_masking=True,
-                                      mask_distance=1) == pytest.approx(-2.8657891750335693)
+    (seq_prob, pos_probs) = msa_sampler.log_likelihood(msa_batch_example[0], target_index=4, with_masking=True, mask_distance=1)
+    assert seq_prob == pytest.approx(-2.3227384090423584)
+    assert mean(pos_probs) == pytest.approx(seq_prob)
+
+    (seq_prob, pos_probs) = msa_sampler.log_likelihood(msa_batch_example[1], target_index=4, with_masking=True, mask_distance=1)
+    assert seq_prob == pytest.approx(-2.8657891750335693)
+    assert mean(pos_probs) == pytest.approx(seq_prob)
 
 
 def test_likelihood_with_masking_entire_sequence_skip_gap(msa_sampler, msa_batch_example):
     # The last one contributes -2.1356, of 28 characters.. so (-65.0367 - (-2.1356))/27
     msa_batch_example[0][-1] = "MTSPDELAAARARIDELDARLVALLAE-"
-    assert msa_sampler.log_likelihood(msa_batch_example[0], target_index=4, with_masking=True,
-                                      mask_distance=1, count_gaps=False) == pytest.approx(-2.32967)
-
+    (seq_prob, pos_probs) = msa_sampler.log_likelihood(msa_batch_example[0], target_index=4, with_masking=True,
+                                      mask_distance=1, count_gaps=False)
+    assert seq_prob == pytest.approx(-2.32967)
+    assert mean(pos_probs) == pytest.approx(seq_prob)
 
 def test_likelihood_batch_without_masking(msa_sampler, msa_batch_example):
-    result = msa_sampler.log_likelihood_batch(msa_batch_example, target_index=4, with_masking=False)
-    assert result[0] == pytest.approx(-0.06248655170202255)
-    assert result[1] == pytest.approx(-0.1334836632013321)
-
+    result = list(msa_sampler.log_likelihood_batch(msa_batch_example, target_index=4, with_masking=False))
+    assert result[0][0] == pytest.approx(-0.06248655170202255)
+    assert mean(result[0][1]) == pytest.approx(result[0][0])
+    assert result[1][0] == pytest.approx(-0.1334836632013321)
+    assert mean(result[1][1]) == pytest.approx(result[1][0])
 
 def test_likelihood_batch_with_individual_masking(msa_sampler, msa_batch_example):
-    result = msa_sampler.log_likelihood_batch(msa_batch_example, target_index=4, with_masking=True)
-    assert result[0] == pytest.approx(-0.738074004650116)
-    assert result[1] == pytest.approx(-0.876354455947876)
-
+    result = list(msa_sampler.log_likelihood_batch(msa_batch_example, target_index=4, with_masking=True))
+    assert result[0][0] == pytest.approx(-0.738074004650116)
+    assert mean(result[0][1]) == pytest.approx(result[0][0])
+    assert result[1][0] == pytest.approx(-0.876354455947876)
+    assert mean(result[1][1]) == pytest.approx(result[1][0])
 
 def test_likelihood_batch_with_masking_entire_sequence(msa_sampler, msa_batch_example):
-    result = msa_sampler.log_likelihood_batch(msa_batch_example, target_index=4, with_masking=True,
-                                              mask_distance=1)
-    assert result[0] == pytest.approx(-2.3227384090423584)
-    assert result[1] == pytest.approx(-2.8657891750335693)
+    result = list(msa_sampler.log_likelihood_batch(msa_batch_example, target_index=4, with_masking=True,
+                                              mask_distance=1))
+    assert result[0][0] == pytest.approx(-2.3227384090423584)
+    assert mean(result[0][1]) == pytest.approx(result[0][0])
+    assert result[1][0] == pytest.approx(-2.8657891750335693)
+    assert mean(result[1][1]) == pytest.approx(result[1][0])
 
 
 @pytest.mark.parametrize("mask_distance,expected", [(1, (-2.3227384090423584, -2.8657891750335693)),
@@ -293,10 +310,12 @@ def test_likelihood_batch_with_masking_entire_sequence(msa_sampler, msa_batch_ex
                                                     (50, (-0.738074004650116, -0.876354455947876))  # input 2 is 44 chars
                                                     ])
 def test_likelihood_batch_with_individual_masking_distance(msa_sampler, msa_batch_example, mask_distance, expected):
-    result = msa_sampler.log_likelihood_batch(msa_batch_example, target_index=4, with_masking=True,
-                                              mask_distance=mask_distance)
-    assert result[0] == pytest.approx(expected[0])
-    assert result[1] == pytest.approx(expected[1])
+    result = list(msa_sampler.log_likelihood_batch(msa_batch_example, target_index=4, with_masking=True,
+                                              mask_distance=mask_distance))
+    assert result[0][0] == pytest.approx(expected[0])
+    assert mean(result[0][1]) == pytest.approx(result[0][0])
+    assert result[1][0] == pytest.approx(expected[1])
+    assert mean(result[1][1]) == pytest.approx(result[1][0])
 
 
 @pytest.mark.parametrize("batch_size", [1, 2, 5, 100])
@@ -305,10 +324,12 @@ def test_likelihood_batch_with_individual_masking_distance(msa_sampler, msa_batc
                                                     (5, (-0.7348969578742981, -0.883063554763794)),
                                                     ])
 def test_likelihood_batch_handles_batch_sizes(msa_sampler, msa_batch_example, batch_size, mask_distance, expected):
-    result = msa_sampler.log_likelihood_batch(msa_batch_example, target_index=4, with_masking=True,
-                                              mask_distance=mask_distance, batch_size=batch_size)
-    assert result[0] == pytest.approx(expected[0])
-    assert result[1] == pytest.approx(expected[1])
+    result = list(msa_sampler.log_likelihood_batch(msa_batch_example, target_index=4, with_masking=True,
+                                              mask_distance=mask_distance, batch_size=batch_size))
+    assert result[0][0] == pytest.approx(expected[0])
+    assert mean(result[0][1]) == pytest.approx(result[0][0])
+    assert result[1][0] == pytest.approx(expected[1])
+    assert mean(result[1][1]) == pytest.approx(result[1][0])
 
 
 @pytest.mark.parametrize("input_index,input_name,expected,mask_off,mask_distance", [
@@ -395,6 +416,7 @@ def test_log_likelihood_count_gaps(msa_sampler):
     no_gaps = msa_sampler.log_likelihood(input_aln, target_index=4, with_masking=False, count_gaps=False)
     gaps = msa_sampler.log_likelihood(input_aln, target_index=4, with_masking=False, count_gaps=True)
 
+    print(no_gaps)
     # adding gaps to the calculation should improve (make closer to zero) the score because they should be pretty predictable from the neighboring gaps.
     assert no_gaps < gaps
 

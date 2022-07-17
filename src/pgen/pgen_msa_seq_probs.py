@@ -1,3 +1,5 @@
+#DEPRECEATED
+
 import argparse, textwrap
 from pgen.esm_msa_sampler import ESM_MSA_sampler
 from pgen import models

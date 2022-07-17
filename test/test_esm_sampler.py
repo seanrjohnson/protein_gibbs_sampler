@@ -1,3 +1,4 @@
+from statistics import mean
 import pytest
 import torch
 from pgen import models, esm_sampler
@@ -262,32 +263,45 @@ def test_generate_batch_only_includes_allowed_aa(esm_sampler_fixture):
 #     assert "<mask>" not in out[0]
 
 def test_log_likelihood_with_mask(esm_sampler_fixture):
-    assert esm_sampler_fixture.log_likelihood("MRHGDISSSNDTVGVAVVNYKMPRLHTAAEVLDNAR") == pytest.approx(-2.843970775604248)
-    assert esm_sampler_fixture.log_likelihood("LTWEEQCKTCKGCRYNFQHE") == pytest.approx(-3.0787816047668457)
-    assert esm_sampler_fixture.log_likelihood("ACDEFGHIKLMNPQRSTVWY") == pytest.approx(-3.290297269821167)
+    (seq_prob, pos_probs) = esm_sampler_fixture.log_likelihood("MRHGDISSSNDTVGVAVVNYKMPRLHTAAEVLDNAR")
+    assert seq_prob == pytest.approx(-2.843970775604248)
+    assert seq_prob == pytest.approx(mean(pos_probs))
 
+    (seq_prob, pos_probs) = esm_sampler_fixture.log_likelihood("LTWEEQCKTCKGCRYNFQHE")
+    assert seq_prob == pytest.approx(-3.0787816047668457)
+    assert seq_prob == pytest.approx(mean(pos_probs))
+
+    (seq_prob, pos_probs) = esm_sampler_fixture.log_likelihood("ACDEFGHIKLMNPQRSTVWY")
+    assert seq_prob == pytest.approx(-3.290297269821167)
+    assert seq_prob == pytest.approx(mean(pos_probs))
 
 def test_log_likelihood_without_mask(esm_sampler_fixture):
-    assert esm_sampler_fixture.log_likelihood("MRHGDISSSNDTVGVAVVNYKMPRLHTAAEVLDNAR", with_masking=False) == pytest.approx(-2.1893723011016846)
-    assert esm_sampler_fixture.log_likelihood("LTWEEQCKTCKGCRYNFQHE", with_masking=False) == pytest.approx(-2.3772685527801514)
-    assert esm_sampler_fixture.log_likelihood("ACDEFGHIKLMNPQRSTVWY", with_masking=False) == pytest.approx(-2.412991762161255)
-
+    for s,v in [("MRHGDISSSNDTVGVAVVNYKMPRLHTAAEVLDNAR",-2.1893723011016846),("LTWEEQCKTCKGCRYNFQHE",-2.3772685527801514),("ACDEFGHIKLMNPQRSTVWY",-2.412991762161255)]:
+        (seq_prob, pos_probs) = esm_sampler_fixture.log_likelihood(s, with_masking=False)
+        assert seq_prob == pytest.approx(v)
+        assert seq_prob == pytest.approx(mean(pos_probs))
 
 def test_log_likelihood_batch_with_mask(esm_sampler_fixture):
     input_seq = ["MRHGDISSSNDTVGVAVVNYKMPRLHTAAEVLDNAR", "LTWEEQCKTCKGCRYNFQHE", "ACDEFGHIKLMNPQRSTVWY"]
-    mask_results = esm_sampler_fixture.log_likelihood_batch(input_seq, with_masking=True)
+    mask_results = list(esm_sampler_fixture.log_likelihood_batch(input_seq, with_masking=True))
 
-    assert mask_results[0] == pytest.approx(-2.843970775604248)
-    assert mask_results[1] == pytest.approx(-3.0787816047668457)
-    assert mask_results[2] == pytest.approx(-3.290297269821167)
+    assert mask_results[0][0] == pytest.approx(-2.843970775604248)
+    assert mask_results[0][0] == pytest.approx(mean(mask_results[0][1]))
+    assert mask_results[1][0] == pytest.approx(-3.0787816047668457)
+    assert mask_results[1][0] == pytest.approx(mean(mask_results[1][1]))
+    assert mask_results[2][0] == pytest.approx(-3.290297269821167)
+    assert mask_results[2][0] == pytest.approx(mean(mask_results[2][1]))
 
 
 def test_log_likelihood_batch_without_mask(esm_sampler_fixture):
     input_seq = ["MRHGDISSSNDTVGVAVVNYKMPRLHTAAEVLDNAR", "LTWEEQCKTCKGCRYNFQHE", "ACDEFGHIKLMNPQRSTVWY"]
-    no_mask_results = esm_sampler_fixture.log_likelihood_batch(input_seq, with_masking=False)
-    assert no_mask_results[0] == pytest.approx(-2.1893723011016846)
-    assert no_mask_results[1] == pytest.approx(-2.3772685527801514)
-    assert no_mask_results[2] == pytest.approx(-2.412991762161255)
+    no_mask_results = list(esm_sampler_fixture.log_likelihood_batch(input_seq, with_masking=False))
+    assert no_mask_results[0][0] == pytest.approx(-2.1893723011016846)
+    assert no_mask_results[0][0] == pytest.approx(mean(no_mask_results[0][1]))
+    assert no_mask_results[1][0] == pytest.approx(-2.3772685527801514)
+    assert no_mask_results[1][0] == pytest.approx(mean(no_mask_results[1][1]))
+    assert no_mask_results[2][0] == pytest.approx(-2.412991762161255)
+    assert no_mask_results[2][0] == pytest.approx(mean(no_mask_results[2][1]))
 
 
 @pytest.mark.parametrize("mask_distance,expected", [(1, (-2.7889750003814697, -3.2179431915283203)),
@@ -299,10 +313,12 @@ def test_log_likelihood_batch_without_mask(esm_sampler_fixture):
                                                     ])
 def test_likelihood_batch_with_individual_masking_distance(esm_sampler_fixture, mask_distance, expected):
     input_seq = ["MRHGDISSSNDTVGVAVVNYKMPRLHTAAEVLDNAR", "LTWEEQCKTCKGCRYNFQHE"]
-    actual = esm_sampler_fixture.log_likelihood_batch(input_seq, with_masking=True, mask_distance=mask_distance)
+    actual = list(esm_sampler_fixture.log_likelihood_batch(input_seq, with_masking=True, mask_distance=mask_distance))
 
-    assert actual[0] == pytest.approx(expected[0])
-    assert actual[1] == pytest.approx(expected[1])
+    assert actual[0][0] == pytest.approx(expected[0])
+    assert actual[0][0] == pytest.approx(mean(actual[0][1]))
+    assert actual[1][0] == pytest.approx(expected[1])
+    assert actual[1][0] == pytest.approx(mean(actual[1][1]))
 
 
 @pytest.mark.parametrize("batch_size", [1, 2, 5, 100])
@@ -312,8 +328,9 @@ def test_likelihood_batch_with_individual_masking_distance(esm_sampler_fixture, 
                                                     ])
 def test_likelihood_batch_handles_batch_sizes(esm_sampler_fixture, batch_size, mask_distance, expected):
     input_seq = ["MRHGDISSSNDTVGVAVVNYKMPRLHTAAEVLDNAR", "LTWEEQCKTCKGCRYNFQHE"]
-    actual = esm_sampler_fixture.log_likelihood_batch(input_seq, with_masking=True,
-                                                      mask_distance=mask_distance, batch_size=batch_size)
+    actual = list(esm_sampler_fixture.log_likelihood_batch(input_seq, with_masking=True, mask_distance=mask_distance, batch_size=batch_size))
 
-    assert actual[0] == pytest.approx(expected[0])
-    assert actual[1] == pytest.approx(expected[1])
+    assert actual[0][0] == pytest.approx(expected[0])
+    assert actual[0][0] == pytest.approx(mean(actual[0][1]))
+    assert actual[1][0] == pytest.approx(expected[1])
+    assert actual[1][0] == pytest.approx(mean(actual[1][1]))

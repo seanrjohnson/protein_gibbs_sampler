@@ -15,7 +15,7 @@ POSITIONAL_SCORE_SEP=";"
 
 
 
-def main(input_h, output_h, masking_off, sampler, reference_msa_handle, delete_insertions, batch_size, subset_strategy, alignment_size, subset_random_seed=None, redraw=False, unaligned_queries=False, count_gaps=False, mask_distance=float("inf"), csv=False, positionwise=None):
+def main(input_h, output_h, masking_off, sampler, reference_msa_handle, delete_insertions, batch_size, subset_strategy, alignment_size, subset_random_seed=None, redraw=False, unaligned_queries=False, count_gaps=False, mask_distance=float("inf"), csv=False, positionwise=None, include_gaps_in_positionwise=False):
     positionwise_h = None
     if positionwise is not None:
         positionwise_h = open(positionwise,"w")
@@ -74,11 +74,18 @@ def main(input_h, output_h, masking_off, sampler, reference_msa_handle, delete_i
 
         if len(tmp_msa_list) == batch_size or i+1 == len(in_seqs):
             #TODO: batching is a little weird still because it used to be solely based on len(tmp_msa_list), but now batch size is independent of len(tmp_msa_list)
-            scores = sampler.log_likelihood_batch(tmp_msa_list, with_masking=not masking_off, count_gaps=count_gaps, mask_distance=mask_distance, batch_size=batch_size)
-            for j in range(len(scores)):
-                score, positional_scores = scores[j]
+            scores_iter = sampler.log_likelihood_batch(tmp_msa_list, with_masking=not masking_off, count_gaps=count_gaps, mask_distance=mask_distance, batch_size=batch_size)
+            
+            for j, (score, positional_scores) in enumerate(scores_iter):
+                query_seq = tmp_msa_list[j][-1]
                 print(f"{tmp_name_list[j]}{sep}{score}", file=output_h)
                 if positionwise_h is not None:
+                    if count_gaps and not include_gaps_in_positionwise:
+                        degapped_positional_scores = list()
+                        for seq_idx, char in enumerate(query_seq):
+                            if char != '-':
+                                degapped_positional_scores.append(positional_scores[seq_idx])
+                        positional_scores = degapped_positional_scores
                     print(f"{tmp_name_list[j]}{sep}{POSITIONAL_SCORE_SEP.join(positional_scores)}", file=positionwise_h)
             output_h.flush()
             if positionwise_h is not None:
@@ -101,7 +108,7 @@ if __name__ == "__main__":
                                      formatter_class=RawAndDefaultsFormatter)
     parser.add_argument("-o", type=str, default=None, help="")
     parser.add_argument("-i", default=None, help="A fasta file with sequences to calculate log likelihood for")
-    parser.add_argument("--reference_msa", default=None, required=True, help="A fasta file with an msa to use as a reference. Of subset_strategy is top_hits, then this should be an unaligned fasta of reference sequences.")
+    parser.add_argument("--reference_msa", default=None, required=True, help="A fasta file with an msa to use as a reference. If subset_strategy is top_hits, then this should be an unaligned fasta of reference sequences.")
     parser.add_argument("--device", type=str, default="cpu", choices={"cpu", "gpu"}, help="cpu or gpu")
     parser.add_argument("--masking_off", action="store_true", default=False, help="If set, no masking is done.")
     parser.add_argument("--delete_insertions", action='store_true', default=False, help="If set, then remove all lowercase and '.' characters from input sequences. Default: convert lower to upper and '.' to '-'.") #might want to have the option to keep "." in the msa and convert lower to upper (which would be consistent with the vocabulary, which has ".", but does not have lowercase characters.)
@@ -116,8 +123,9 @@ if __name__ == "__main__":
     parser.add_argument("--unaligned_queries",  action='store_true', default=False, help="If the input sequences are unaligned or come from a different alignment than the reference msa, then use muscle profile to add each sequence to the reference alignment.")
     parser.add_argument("--count_gaps",  action='store_true', default=False, help="If true then average the log likelihoods over the coding positions as well as the gap positions. By default, gap positions are not considered in the sums and averages.")
     parser.add_argument("--mask_distance",  type=int, default=None, help="If set, then multiple positions will be masked at a time, with (mask_distance - 1) non-masked positions between each masked position. This will make the likelihood calculations faster. Default: mask positions one at a time.")
-    parser.add_argument("--csv",  action='store_true', default=False, help="If set, then outputs will be a csv files.")
+    parser.add_argument("--csv", action='store_true', default=False, help="If set, then outputs will be a csv files.")
     parser.add_argument("--positionwise",  type=str, default=None, help="If set, then write positionwise log likelihoods will be written to this file. Two columns, id and esm-msa. Values in second column are a ';' separated list.")
+    parser.add_argument("--include_gaps_in_positionwise",  action='store_true', default=False, help="If set, then write positionwise log likelihoods will include gap positions, otherwise gap positions will be omitted.")
 
 
     args = parser.parse_args()
@@ -147,7 +155,7 @@ if __name__ == "__main__":
     reference_msa_handle = open(args.reference_msa, "r")
     
     sampler = ESM_MSA_sampler(model_map[args.model](), device=args.device)
-    main(input_handle, output_handle, args.masking_off, sampler, reference_msa_handle, args.delete_insertions, args.batch_size, args.subset_strategy, args.alignment_size, args.subset_random_seed, args.redraw, args.unaligned_queries, args.count_gaps, mask_distance, args.csv, args.positionwise)
+    main(input_handle, output_handle, args.masking_off, sampler, reference_msa_handle, args.delete_insertions, args.batch_size, args.subset_strategy, args.alignment_size, args.subset_random_seed, args.redraw, args.unaligned_queries, args.count_gaps, mask_distance, args.csv, args.positionwise, args.include_gaps_in_positionwise)
 
     reference_msa_handle.close()
     if args.i is not None:
