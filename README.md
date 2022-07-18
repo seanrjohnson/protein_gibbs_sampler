@@ -112,7 +112,7 @@ This program will randomly mask and resample a single sequence from the MSA. It 
 example
 
 ```bash
-pgen_msa_revised.py --templates list_of_sequences_to_resample.fasta --references large_list_of_reference_sequences.fasta -o MDH_generated_20220130_aln32_p3_b2.fasta --device gpu --alignment_size 32 --passes 3 --burn_in 2
+pgen_msa_revised.py --templates list_of_sequences_to_resample.fasta --references large_list_of_reference_sequences.fasta -o generated_sequences.fasta --device gpu --alignment_size 32 --passes 3 --burn_in 2
 ```
 
 For detailed help and additional options:
