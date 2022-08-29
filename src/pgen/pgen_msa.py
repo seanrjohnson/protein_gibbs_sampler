@@ -65,7 +65,7 @@ if __name__ == "__main__":
             top_k: if >0, only sample from the top k most probable AAs
             temperature: higher numbers will mean there is a lower penalty for low-scoring amino acids.
             num_iters: how many times to run the forward loop for every batch. 
-            burnin: during burn-in period, sample from full distribution; afterwards take argmax, set to 0 to never sample (always take best), or inf to always sample
+            burnin: during burn-in period, sample from full distribution; afterwards sample from top_k, set to 0 to never sample from full distribution (always take from top_k), or inf to always sample from full distribution.
             num_positions: generate new AAs for this many positions each iteration. If 0, then generate for all target positions each round.
             num_positions_percent: If not None, then set num_positions = int(len(seed_seq)*(num_positions_percent / 100))
             indexes: positions of the input sequence to modify. 1-indexed, if None then all positions after the leader.  

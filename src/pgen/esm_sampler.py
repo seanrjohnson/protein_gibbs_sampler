@@ -11,7 +11,7 @@ def generate_step(out, gen_idx, temperature=None, top_k=0, sample=False, valid_i
         - out (torch.Tensor): tensor of logits of size seq_len x vocab_size
         - gen_idx (int): location for which to generate for
         - top_k (int): if >0, only sample from the top k most probable words
-        - sample (Bool): if True, sample from full distribution. Overridden by top_k
+        - sample (Bool): if True, sample from full distribution. Otherwise sample from top_k amino acids
         - valid_idx (list): list of valid indexes to return. If none, all indexes are valid
     returns:
         tensor containing the selected amino acid index
@@ -133,7 +133,7 @@ class ESM_sampler():
             top_k: if >0, only sample from the top k most probable AAs
             temperature: higher numbers will mean there is a lower penalty for low-scoring amino acids.
             num_iters: how many times to run the forward loop for every batch. 
-            burnin: during burn-in period, sample from full distribution; afterwards take argmax, set to 0 to never sample (always take best), or inf to always sample
+            burnin: during burn-in period, sample from full distribution; afterwards sample from top_k, set to 0 to never sample from full distribution (always take from top_k), or inf to always sample from full distribution.
 
             num_positions: generate new AAs for this many positions each iteration. If 0, then generate for all target positions each round.
             num_positions_percent: If not None, then set num_positions = int(len(seed_seq)*(num_positions_percent / 100))
@@ -151,7 +151,7 @@ class ESM_sampler():
             #To go 15 iterations over the protein where a 10% of AAs randomly distributed through the protein are mutated on each iteration:
                 sampler.generate(n_samples=1, seed_seq=seed, batch_size=1, max_len=len(seed), in_order=False, num_positions=int(len(seed)/10), num_iters=15, mask=False)
             #To go 15 iterations over the protein where a 10% of AAs randomly distributed through the protein are mutated on each iteration, and k=0 for the first 5 iterations, but k=1 for the remaining:
-                sampler.generate(n_samples=1, seed_seq=seed, batch_size=1, max_len=len(seed), in_order=False, num_positions=int(len(seed)/10), num_iters=15, burnin=5, mask=False)
+                sampler.generate(n_samples=1, seed_seq=seed, batch_size=1, max_len=len(seed), in_order=False, num_positions=int(len(seed)/10), num_iters=15, burnin=5, k=1, mask=False)
             
             #### Sequence Completion ####
             seed = "MTSENPLLALREKISALDEKLLALLAERRELAVE"
