@@ -13,9 +13,10 @@ POSITIONAL_SCORE_SEP=";"
 model_map = {"esm1b":models.ESM1b, "esm6":models.ESM6, "esm12":models.ESM12, "esm34":models.ESM34, "esm1v":models.ESM1v}
 
 def main(input_h, output_h, masking_off, device, model, batch_size, mask_distance, csv, score_name, positionwise=None):
-
+    positionwise_h = None
     if positionwise is not None:
         positionwise_h = open(positionwise,"w")
+        
 
     sampler = ESM_sampler(model_map[model](),device=device)
     

@@ -66,7 +66,7 @@ def main(argv):
     parser.add_argument("-o", default=None, required=True, help="a fasta file to write generated sequences to")
     parser.add_argument("--seqs_per_template", type=int, default=1, help="Number of new sequences to generate for each template sequence.")
     parser.add_argument("--keep_identical", action="store_true", default=False, help="By default, if a template sequence is identical to the query sequence, it is thrown out. Set this if, for some reason you want to keep those.")
-    parser.add_argument("--steps", type=int, default=10, help="Randomly assign the input positions to this many mask bins pass, and mask and generate over one bin at a time.")
+    parser.add_argument("--steps", type=int, default=10, help="Randomly assign the input positions to this many mask bins, and mask and generate over one bin at a time.")
     parser.add_argument("--passes", type=int, default=3, help="how many passes over the entire template sequence to make.")
     parser.add_argument("--burn_in", type=int, default=1, help="A number of passes equal to burn_in will sample from the entire distribution, after which amino acids will be sampled from the top_k most likely.")
     parser.add_argument("--top_k", type=int, default=1, help="Sample from the this many of the most probable amino acids, after burn in. If 0 then always sample from full distribution.")
