@@ -43,9 +43,11 @@ Given a seed sequence, generates new sequences.
 
 #### pgen_esm_input.tsv
 ```tsv
-test_seq	{'num_iters': 20, 'burnin': 10, 'mask': True, 'in_order':False, 'num_positions_percent': 10, 'seed_seq': "MEPAATGQEAEECAHSGRGEAWEEV"}
-test_seq2	{'num_iters': 20, 'burnin': 10, 'mask': True, 'in_order':False, 'num_positions_percent': 10, 'seed_seq': "MLEGADIVIIPAGV"}
+test_seq	{'num_iters': 20, 'burnin': 10, 'mask': True, 'in_order':False, 'num_positions_percent': 10, 'top_k': 1, 'seed_seq': "MEPAATGQEAEECAHSGRGEAWEEV"}
+test_seq2	{'num_iters': 20, 'burnin': 10, 'mask': True, 'in_order':False, 'num_positions_percent': 10, 'top_k': 1, 'seed_seq': "MLEGADIVIIPAGV"}
 ```
+
+Note that for `pgen_msa.py`, if 'top_k' is not defined, then all rounds are burnin rounds.
 
 ```bash
 pgen_esm.py -o pgen_out -i pgen_esm_input.tsv --num_output_sequences 10
@@ -94,9 +96,11 @@ M-EPADILVV--GV
 
 #### pgen_msa_input.tsv
 ```tsv
-test_seq	{'num_iters': 20, 'burnin': 10, 'mask': True, 'in_order':False, 'num_positions_percent': 10}	fasta_input1.fasta
-test_seq2	{'num_iters': 20, 'burnin': 10, 'mask': True, 'in_order':False, 'num_positions_percent': 10}	fasta_input2.fasta
+test_seq	{'num_iters': 20, 'burnin': 10, 'mask': True, 'in_order':False, 'num_positions_percent': 10, 'top_k': 1}	fasta_input1.fasta
+test_seq2	{'num_iters': 20, 'burnin': 10, 'mask': True, 'in_order':False, 'num_positions_percent': 10, 'top_k': 1}	fasta_input2.fasta
 ```
+
+Note that for `pgen_msa.py`, if 'top_k' is not defined, then all rounds are burnin rounds.
 
 ```bash
 pgen_msa.py -o pgen_msa_out -i pgen_esm_msa_input.tsv --num_output_sequences 10 
