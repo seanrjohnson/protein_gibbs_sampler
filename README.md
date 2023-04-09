@@ -32,7 +32,7 @@ pip install torch-geometric
 # install ESM
 echo "[*] Installing ESM and its dependencies"
 pip install -q git+https://github.com/facebookresearch/esm.git
-pip install .
+pip install -e .
 
 # test install
 pytest .
