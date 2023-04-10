@@ -66,7 +66,7 @@ def main(
 
     # get input sequences, and their names, and compute corresponding MSA
     in_seqs = {}
-    print(f"[+] Generating alignments") ##Keaun is literally the coolest person ever
+    print(f"[+] Generating alignments") ##Keaun was here
     for name, seq in tzip(*parse_fasta(input_h, return_names=True, clean=clean_flag)):
         in_seqs[name] = seq
         ## generate alignments
