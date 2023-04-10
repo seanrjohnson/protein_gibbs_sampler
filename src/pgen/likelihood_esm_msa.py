@@ -34,9 +34,6 @@ def main(
         positionwise=None,
         include_gaps_in_positionwise=False
     ):
-    # subtract alignment_size by 1 indexing starts at 0 
-    alignment_size -= 1
-
     positionwise_h = None
     if positionwise is not None:
         positionwise_h = open(positionwise,"w")
@@ -78,7 +75,7 @@ def main(
             if subset_strategy == "top_hits":
                 hits = run_phmmer(seq,reference_db_path)
                 #mafft should preserve the order of sequences
-                _, new_alignment = generate_alignment({"1": [ renamed_reference_sequences[hit] for hit in hits[:alignment_size] ] + [seq]})
+                _, new_alignment = generate_alignment({"1": [ renamed_reference_sequences[hit] for hit in hits[:alignment_size-1] ] + [seq]})
                 in_msas[name] = new_alignment
             else:
                 if redraw:
