@@ -75,7 +75,7 @@ def main(
             if subset_strategy == "top_hits":
                 hits = run_phmmer(seq,reference_db_path)
                 #mafft should preserve the order of sequences
-                _, new_alignment = generate_alignment({"1": [ renamed_reference_sequences[hit] for hit in hits[:alignment_size-1] ] + [seq]})
+                _, new_alignment = generate_alignment({"1": [ renamed_reference_sequences[hit] for hit in hits[:alignment_size] ] + [seq]})
                 in_msas[name] = new_alignment
             else:
                 if redraw:
@@ -137,7 +137,7 @@ if __name__ == "__main__":
     parser.add_argument("--device", type=str, default="cpu", choices={"cpu", "gpu"}, help="cpu or gpu")
     parser.add_argument("--masking_off", action="store_true", default=False, help="If set, no masking is done.")
     parser.add_argument("--delete_insertions", action='store_true', default=False, help="If set, then remove all lowercase and '.' characters from input sequences. Default: convert lower to upper and '.' to '-'.") #might want to have the option to keep "." in the msa and convert lower to upper (which would be consistent with the vocabulary, which has ".", but does not have lowercase characters.)
-    parser.add_argument("--alignment_size", type=int, default=sys.maxsize, help="Sample this many sequences from the reference alignment before doing gibbs sampling, recommended values are 32-255. Default: the entire reference alignment.")
+    parser.add_argument("--alignment_size", type=int, default=sys.maxsize, help="Sample this many sequences from the reference alignment before doing gibbs sampling, recommended values are 31-255. Default: the entire reference alignment.")
     
     parser.add_argument("--batch_size", type=int, default=1, help="Batch size for sampling (msa instances per iteration).")
     parser.add_argument("--subset_strategy", default="random", choices={"random","in_order","top_hits"}, help="How to subset the reference alignment to get it to the desired size. random: draw randombly, in_order: take the sequences listed first in the reference alignment, top_hits: run phmmer for each query against the reference sequences and use the top hits as the reference.")

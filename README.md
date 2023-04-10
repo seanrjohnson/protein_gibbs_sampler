@@ -172,7 +172,7 @@ We have noticed that the probability scores from ESM-MSA are best from partially
 Note that in some cases `--reference_msa` can actually be an unaligned fasta file, because the sequences may be re-aligned at runtime, depending on the `subset_strategy`.
 
 ```bash
-likelihood_esm_msa.py -i seqs_to_calculate_probabilities_for.fasta -o whole_sequence_probabilities.csv --reference_msa reference_sequences.fasta --device gpu --subset_strategy top_hits --alignment_size 32 --count_gaps --mask_distance 6 --csv --positionwise positionwise_sequence_probabilities.csv
+likelihood_esm_msa.py -i seqs_to_calculate_probabilities_for.fasta -o whole_sequence_probabilities.csv --reference_msa reference_sequences.fasta --device gpu --subset_strategy top_hits --alignment_size 31 --count_gaps --mask_distance 6 --csv --positionwise positionwise_sequence_probabilities.csv
 ```
 For detailed help and additional options:
 `likelihood_esm_msa.py -h`
