@@ -117,8 +117,6 @@ def main(
         if positionwise_h is not None:
             positionwise_h.flush()
     
-    if subset_strategy == "top_hits": # if the strategy is top_hits, then we need to redraw and re-align for every query.
-        os.unlink(reference_db_path)
     if positionwise_h is not None:
         positionwise_h.close()
 
