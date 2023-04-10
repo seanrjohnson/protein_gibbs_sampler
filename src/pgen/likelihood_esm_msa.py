@@ -97,7 +97,7 @@ def main(
         for ndx in range(0, l, n):
             yield iterable[ndx:min(ndx + n, l)]
 
-    for batch in tqdm.tqdm(batch(list(in_seqs.keys()), batch_size)):
+    for batch in tqdm.tqdm(batch(list(in_seqs.keys()), batch_size), total=len(in_seqs)):
         tmp_name_list = batch
         tmp_msa_list = [in_msas[x] for x in batch]
 
