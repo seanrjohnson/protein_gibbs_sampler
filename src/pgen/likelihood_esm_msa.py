@@ -5,17 +5,38 @@ from pgen import models
 from pgen.utils import parse_fasta, RawAndDefaultsFormatter, SequenceSubsetter, add_to_msa, write_sequential_fasta, generate_alignment, run_phmmer
 import sys
 import tqdm
+from tqdm.contrib import tzip
 import tempfile
 import os
-
-model_map = {"esm_msa1": models.ESM_MSA1}
 
 # TODO: option to average across multiple runs with different random subsets
 POSITIONAL_SCORE_SEP=";"
 
 
 
-def main(input_h, output_h, masking_off, sampler, reference_msa_handle, delete_insertions, batch_size, subset_strategy, alignment_size, subset_random_seed=None, redraw=False, unaligned_queries=False, count_gaps=False, mask_distance=float("inf"), csv=False, positionwise=None, include_gaps_in_positionwise=False):
+def main(
+        input_h,
+        output_h,
+        masking_off,
+        sampler,
+        reference_msa_handle=None,
+        in_msas=None, #Python dictionary where keys and values correspond to names and msas, respectively. If input msas are provided than reference_msa_handle will be ignored.
+        delete_insertions=False,
+        batch_size=1,
+        subset_strategy="random",
+        alignment_size=sys.maxsize,
+        subset_random_seed=None,
+        redraw=False,
+        unaligned_queries=False,
+        count_gaps=False,
+        mask_distance=float("inf"),
+        csv=False,
+        positionwise=None,
+        include_gaps_in_positionwise=False
+    ):
+    # subtract alignment_size by 1 indexing starts at 0 
+    alignment_size -= 1
+
     positionwise_h = None
     if positionwise is not None:
         positionwise_h = open(positionwise,"w")
@@ -28,94 +49,99 @@ def main(input_h, output_h, masking_off, sampler, reference_msa_handle, delete_i
     if csv:
         sep=","
 
-    in_seqs = list(zip(*parse_fasta(input_h, return_names=True, clean=clean_flag)))
-    reference_msa = parse_fasta(reference_msa_handle, clean=clean_flag)
-
-    if subset_strategy == "top_hits": # if the strategy is top_hits, then we need to redraw and re-align for every query.
-        tmp_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
-        write_sequential_fasta(tmp_file, reference_msa)
-        tmp_file.close()
-        reference_db_path = tmp_file.name
-        names, sequences = parse_fasta(reference_db_path,return_names=True)
-        renamed_reference_sequences = dict()
-        for i in range(len(names)):
-            renamed_reference_sequences[names[i]] = sequences[i]
-
+    # MSA preprocessing
+    generate_msas = True
+    if in_msas:
+        generate_msas = False
     else:
-        seq_msa = SequenceSubsetter.subset(reference_msa, alignment_size, strategy=subset_strategy, random_seed=subset_random_seed)
+        in_msas = {}
+        reference_msa = parse_fasta(reference_msa_handle, clean=clean_flag)
+        if subset_strategy == "top_hits": # if the strategy is top_hits, then we need to redraw and re-align for every query.
+            tmp_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
+            write_sequential_fasta(tmp_file, reference_msa)
+            tmp_file.close()
+            reference_db_path = tmp_file.name
+            renamed_reference_sequences = dict()
+            for name, seq in zip(*parse_fasta(reference_db_path, return_names=True)):
+                renamed_reference_sequences[name] = seq
+        else:
+            seq_msa = SequenceSubsetter.subset(reference_msa, alignment_size, strategy=subset_strategy, random_seed=subset_random_seed)
 
-    # tmp_seq_list = list()
-    tmp_name_list = list()
-    tmp_msa_list = list()
+    # get input sequences, and their names, and compute corresponding MSA
+    in_seqs = {}
+    print(f"[+] Generating alignments") ##Keaun is literally the coolest person ever
+    for name, seq in tzip(*parse_fasta(input_h, return_names=True, clean=clean_flag)):
+        in_seqs[name] = seq
+        ## generate alignments
+        if generate_msas:
+            # generate msa using top_hits from reference sequences
+            if subset_strategy == "top_hits":
+                hits = run_phmmer(seq,reference_db_path)
+                #mafft should preserve the order of sequences
+                _, new_alignment = generate_alignment({"1": [ renamed_reference_sequences[hit] for hit in hits[:alignment_size] ] + [seq]})
+                in_msas[name] = new_alignment
+            else:
+                if redraw:
+                    seq_msa = SequenceSubsetter.subset(reference_msa, alignment_size, strategy=subset_strategy, random_seed=subset_random_seed)
+                    if subset_random_seed is not None:
+                        subset_random_seed += 1000000
+                if unaligned_queries:
+                    in_msas[name] = add_to_msa(seq_msa, seq)
+                else:
+                    in_msas[name] = seq_msa.copy() + [seq]
 
     print(f"id{sep}esm-msa", file=output_h)
     if positionwise_h is not None:
         print(f"id{sep}esm-msa", file=positionwise_h)
 
-    for i in tqdm.trange(len(in_seqs)):
-        name, seq = in_seqs[i]
-        tmp_name_list.append(name)
+    # for batching
+    def batch(iterable, n=1):
+        l = len(iterable)
+        for ndx in range(0, l, n):
+            yield iterable[ndx:min(ndx + n, l)]
 
-        if subset_strategy == "top_hits":
-            hits = run_phmmer(seq,reference_db_path)
-            _, new_alignment = generate_alignment({"1": [ renamed_reference_sequences[hit] for hit in hits[:alignment_size] ] + [seq]}) #mafft should preserve the order of sequences
-            tmp_msa_list.append(new_alignment) 
+    for batch in tqdm.tqdm(batch(list(in_seqs.keys()), batch_size)):
+        tmp_name_list = batch
+        tmp_msa_list = [in_msas[x] for x in batch]
 
-        else:
-            if redraw:
-                seq_msa = SequenceSubsetter.subset(reference_msa, alignment_size, strategy=subset_strategy, random_seed=subset_random_seed)
-                if subset_random_seed is not None:
-                    subset_random_seed += 1000000
-
-            if unaligned_queries:
-                tmp_msa_list.append(add_to_msa(seq_msa, seq))
-            else:     
-                tmp_msa_list.append(seq_msa.copy() + [seq])            
-
-        if len(tmp_msa_list) == batch_size or i+1 == len(in_seqs):
-            #TODO: batching is a little weird still because it used to be solely based on len(tmp_msa_list), but now batch size is independent of len(tmp_msa_list)
-            scores_iter = sampler.log_likelihood_batch(tmp_msa_list, with_masking=not masking_off, count_gaps=count_gaps, mask_distance=mask_distance, batch_size=batch_size)
-            
-            for j, (score, positional_scores) in enumerate(scores_iter):
-                query_seq = tmp_msa_list[j][-1]
-                print(f"{tmp_name_list[j]}{sep}{score}", file=output_h)
-                if positionwise_h is not None:
-                    if count_gaps and not include_gaps_in_positionwise:
-                        degapped_positional_scores = list()
-                        for seq_idx, char in enumerate(query_seq):
-                            if char != '-':
-                                degapped_positional_scores.append(positional_scores[seq_idx])
-                        positional_scores = degapped_positional_scores
-                    print(f"{tmp_name_list[j]}{sep}{POSITIONAL_SCORE_SEP.join([str(round(x,3) ) for x in positional_scores])}", file=positionwise_h)
-            output_h.flush()
+        scores_iter = sampler.log_likelihood_batch(tmp_msa_list, with_masking=not masking_off, count_gaps=count_gaps, mask_distance=mask_distance, batch_size=batch_size)
+        for j, (score, positional_scores) in enumerate(scores_iter):
+            query_seq = tmp_msa_list[j][-1]
+            print(f"{tmp_name_list[j]}{sep}{score}", file=output_h)
             if positionwise_h is not None:
-                positionwise_h.flush()
-            tmp_msa_list = list()
-            tmp_name_list = list()
+                if count_gaps and not include_gaps_in_positionwise:
+                    degapped_positional_scores = []
+                    for seq_idx, char in enumerate(query_seq):
+                        if char != '-':
+                            degapped_positional_scores.append(positional_scores[seq_idx])
+                    positional_scores = degapped_positional_scores
+                print(f"{tmp_name_list[j]}{sep}{POSITIONAL_SCORE_SEP.join([str(round(x,3) ) for x in positional_scores])}", file=positionwise_h)
+        output_h.flush()
+        if positionwise_h is not None:
+            positionwise_h.flush()
     
     if subset_strategy == "top_hits": # if the strategy is top_hits, then we need to redraw and re-align for every query.
         os.unlink(reference_db_path)
     if positionwise_h is not None:
         positionwise_h.close()
-        
- 
+
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=textwrap.dedent("""Calculates average log likelihood of a fasta from the ESM-MSA model.
     
     writes a tab separated output file with columns:
     sequence name, score
-    """),
-                                     formatter_class=RawAndDefaultsFormatter)
+    """), formatter_class=RawAndDefaultsFormatter)
+    
     parser.add_argument("-o", type=str, default=None, help="")
     parser.add_argument("-i", default=None, help="A fasta file with sequences to calculate log likelihood for")
     parser.add_argument("--reference_msa", default=None, required=True, help="A fasta file with an msa to use as a reference. If subset_strategy is top_hits, then this should be an unaligned fasta of reference sequences.")
     parser.add_argument("--device", type=str, default="cpu", choices={"cpu", "gpu"}, help="cpu or gpu")
     parser.add_argument("--masking_off", action="store_true", default=False, help="If set, no masking is done.")
     parser.add_argument("--delete_insertions", action='store_true', default=False, help="If set, then remove all lowercase and '.' characters from input sequences. Default: convert lower to upper and '.' to '-'.") #might want to have the option to keep "." in the msa and convert lower to upper (which would be consistent with the vocabulary, which has ".", but does not have lowercase characters.)
-    parser.add_argument("--alignment_size", type=int, default=sys.maxsize, help="Sample this many sequences from the reference alignment before doing gibbs sampling, recommended values are 31-255. Default: the entire reference alignment.")
+    parser.add_argument("--alignment_size", type=int, default=sys.maxsize, help="Sample this many sequences from the reference alignment before doing gibbs sampling, recommended values are 32-255. Default: the entire reference alignment.")
     
-    parser.add_argument("--model", type=str, default="esm_msa1", choices={"esm_msa1"},
-                        help="which model to use.")
     parser.add_argument("--batch_size", type=int, default=1, help="Batch size for sampling (msa instances per iteration).")
     parser.add_argument("--subset_strategy", default="random", choices={"random","in_order","top_hits"}, help="How to subset the reference alignment to get it to the desired size. random: draw randombly, in_order: take the sequences listed first in the reference alignment, top_hits: run phmmer for each query against the reference sequences and use the top hits as the reference.")
     parser.add_argument("--subset_random_seed", default=None, type=int, help="Seed to start the random batch subsetter at. The seed will increment by 1000000 after each draw.")
@@ -129,7 +155,6 @@ if __name__ == "__main__":
 
 
     args = parser.parse_args()
-
     if args.redraw and args.subset_strategy == 'in_order':
         raise ValueError(f"redraw is set, but subset_strategy is 'in_order', so all the draws will be the same. That's probably not what you're trying to do.")
 
@@ -139,8 +164,6 @@ if __name__ == "__main__":
 
     if mask_distance < 1:
         raise ValueError(f"mask distance must be an integer >= 1.")
-
-
 
     if args.i is not None:
         input_handle = open(args.i, "r")
@@ -154,8 +177,26 @@ if __name__ == "__main__":
 
     reference_msa_handle = open(args.reference_msa, "r")
     
-    sampler = ESM_MSA_sampler(model_map[args.model](), device=args.device)
-    main(input_handle, output_handle, args.masking_off, sampler, reference_msa_handle, args.delete_insertions, args.batch_size, args.subset_strategy, args.alignment_size, args.subset_random_seed, args.redraw, args.unaligned_queries, args.count_gaps, mask_distance, args.csv, args.positionwise, args.include_gaps_in_positionwise)
+    sampler = ESM_MSA_sampler(models.ESM_MSA1(), device=args.device)
+    main(
+        input_h=input_handle,
+        output_h=output_handle,
+        masking_off=args.masking_off,
+        sampler=sampler,
+        reference_msa_handle=reference_msa_handle,
+        delete_insertions=args.delete_insertions,
+        batch_size=args.batch_size,
+        subset_strategy=args.subset_strategy,
+        alignment_size=args.alignment_size,
+        subset_random_seed=args.subset_random_seed,
+        redraw=args.redraw,
+        unaligned_queries=args.unaligned_queries,
+        count_gaps=args.count_gaps,
+        mask_distance=mask_distance,
+        csv=args.csv,
+        positionwise=args.positionwise,
+        include_gaps_in_positionwise=args.include_gaps_in_positionwise,
+    )
 
     reference_msa_handle.close()
     if args.i is not None:
