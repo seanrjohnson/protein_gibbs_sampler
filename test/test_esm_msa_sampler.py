@@ -491,7 +491,7 @@ def test_likelihood_executable_top_hits(msa_sampler):
     output_handle = StringIO()
     likelihood_esm_msa.main(
         input_h=unaligned_input_handle,
-        output=output_handle,
+        output_h=output_handle,
         masking_off=True,
         sampler=msa_sampler,
         reference_msa_handle=alignment_handle,

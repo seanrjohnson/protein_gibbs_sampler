@@ -103,8 +103,7 @@ def test_add_gaps_back(test_input,expected):
     ]
     )])
 
-def test_add_to_msa(msa,new_seq,expected):
-    
+def test_add_to_msa(msa, new_seq, expected):
     out = utils.add_to_msa(msa, new_seq)
     assert out == expected
 
