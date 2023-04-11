@@ -20,7 +20,7 @@ def main(
         masking_off,
         sampler,
         reference_msa_handle=None,
-        in_msas=None, #Python dictionary where keys and values correspond to names and msas, respectively. If input msas are provided than reference_msa_handle will be ignored.
+        in_msas=None, #Python dictionary where keys and values correspond to names and msas, respectively. If input msas are provided than reference_msa_handle will be ignored. The target or query sequence must be present at the very bottom of each input MSA
         delete_insertions=False,
         batch_size=1,
         subset_strategy="random",
