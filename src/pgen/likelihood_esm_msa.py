@@ -13,7 +13,6 @@ import os
 POSITIONAL_SCORE_SEP=";"
 
 
-
 def main(
         input_h,
         output_h,
@@ -34,17 +33,15 @@ def main(
         positionwise=None,
         include_gaps_in_positionwise=False
     ):
+    # output file(s) prep
+    clean_flag = "delete" if delete_insertions else "upper"
+    sep = "," if csv else "\t"
+
+    print(f"id{sep}esm-msa", file=output_h)
     positionwise_h = None
     if positionwise is not None:
         positionwise_h = open(positionwise,"w")
-    
-    clean_flag = 'upper'
-    if delete_insertions:
-        clean_flag = 'delete'
-
-    sep="\t"
-    if csv:
-        sep=","
+        print(f"id{sep}esm-msa", file=positionwise_h)
 
     # MSA preprocessing
     generate_msas = True
@@ -64,32 +61,33 @@ def main(
         else:
             seq_msa = SequenceSubsetter.subset(reference_msa, alignment_size, strategy=subset_strategy, random_seed=subset_random_seed)
 
-    # get input sequences, and their names, and compute corresponding MSA
+
+    # set in_seqs
     in_seqs = {}
-    print(f"[+] Generating alignments") ##Keaun was here
-    for name, seq in tzip(*parse_fasta(input_h, return_names=True, clean=clean_flag)):
+    for name, seq in zip(*parse_fasta(input_h, return_names=True, clean=clean_flag)):
         in_seqs[name] = seq
-        ## generate alignments
+
+
+    # get input sequences, and their names, and compute corresponding MSA
+    def get_in_msa(name):
         if generate_msas:
             # generate msa using top_hits from reference sequences
             if subset_strategy == "top_hits":
-                hits = run_phmmer(seq,reference_db_path)
-                #mafft should preserve the order of sequences
-                _, new_alignment = generate_alignment({"1": [ renamed_reference_sequences[hit] for hit in hits[:alignment_size] ] + [seq]})
-                in_msas[name] = new_alignment
+                hits = run_phmmer(seq, reference_db_path)
+                # mafft should preserve the order of sequences
+                _, new_alignment = generate_alignment({"1": [renamed_reference_sequences[hit] for hit in hits[:alignment_size]] + [seq]})
+                return new_alignment
             else:
                 if redraw:
                     seq_msa = SequenceSubsetter.subset(reference_msa, alignment_size, strategy=subset_strategy, random_seed=subset_random_seed)
                     if subset_random_seed is not None:
                         subset_random_seed += 1000000
                 if unaligned_queries:
-                    in_msas[name] = add_to_msa(seq_msa, seq)
+                    return add_to_msa(seq_msa, seq)
                 else:
-                    in_msas[name] = seq_msa.copy() + [seq]
-
-    print(f"id{sep}esm-msa", file=output_h)
-    if positionwise_h is not None:
-        print(f"id{sep}esm-msa", file=positionwise_h)
+                    return seq_msa.copy() + [seq]
+        else:
+            return in_msas[name]
 
     # for batching
     def batch(iterable, n=1):
@@ -99,7 +97,7 @@ def main(
 
     for batch in tqdm.tqdm(batch(list(in_seqs.keys()), batch_size), total=len(in_seqs)):
         tmp_name_list = batch
-        tmp_msa_list = [in_msas[x] for x in batch]
+        tmp_msa_list = [get_in_msa(x) for x in batch]
 
         scores_iter = sampler.log_likelihood_batch(tmp_msa_list, with_masking=not masking_off, count_gaps=count_gaps, mask_distance=mask_distance, batch_size=batch_size)
         for j, (score, positional_scores) in enumerate(scores_iter):
