@@ -44,6 +44,7 @@ def main(
         print(f"id{sep}esm-msa", file=positionwise_h)
 
     # MSA preprocessing
+    seq_msa = None
     generate_msas = True
     if in_msas:
         generate_msas = False
@@ -61,15 +62,14 @@ def main(
         else:
             seq_msa = SequenceSubsetter.subset(reference_msa, alignment_size, strategy=subset_strategy, random_seed=subset_random_seed)
 
-
     # set in_seqs
     in_seqs = {}
     for name, seq in zip(*parse_fasta(input_h, return_names=True, clean=clean_flag)):
         in_seqs[name] = seq
 
-
     # get input sequences, and their names, and compute corresponding MSA
-    def get_in_msa(name):
+    def get_in_msa(name, seq_msa=seq_msa):
+        seq = in_seqs[name]
         if generate_msas:
             # generate msa using top_hits from reference sequences
             if subset_strategy == "top_hits":

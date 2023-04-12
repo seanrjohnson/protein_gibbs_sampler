@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="pgen",
-    version="0.2.2",
+    version="0.2.3",
     description="Generating new protein sequence by gibbs sampling masked protein language models",
     author="Sean Johnson, Sarah Monaco, Kenneth Massie, Zaid Sayed",
     url="https://github.com/seanrjohnson/protein_gibbs_sampler",
