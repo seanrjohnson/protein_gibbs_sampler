@@ -352,8 +352,19 @@ def test_likelihood_executable_no_mask(msa_sampler, msa_batch_example, input_ind
         output_handle = StringIO()
         # tmpdirname = "tmp_out"
         positionwise_output_path = tmpdirname + "/positionwise_output.tsv"
-        likelihood_esm_msa.main(input_handle, output_handle, masking_off=mask_off, sampler=msa_sampler, mask_distance=mask_distance,
-            reference_msa_handle=alignment_handle, delete_insertions=False, batch_size=1, subset_strategy="in_order",alignment_size=4,positionwise=positionwise_output_path)
+        likelihood_esm_msa.main(
+            input_h=input_handle,
+            output_h=output_handle,
+            masking_off=mask_off,
+            sampler=msa_sampler,
+            mask_distance=mask_distance,
+            reference_msa_handle=alignment_handle,
+            delete_insertions=False,
+            batch_size=1,
+            subset_strategy="in_order",
+            alignment_size=4,
+            positionwise=positionwise_output_path,
+        )
         output_handle.seek(0)
         name, score = output_handle.readline().split()
         assert name == "id"
@@ -386,14 +397,34 @@ def test_likelihood_executable_realign(msa_sampler):
     alignment_handle = StringIO(msa_string)
 
     aligned_output_handle = StringIO()
-    likelihood_esm_msa.main(aligned_input_handle, aligned_output_handle, masking_off=True, sampler=msa_sampler,
-        reference_msa_handle=alignment_handle, delete_insertions=False, batch_size=1, subset_strategy="in_order",alignment_size=4, unaligned_queries=False)
+    likelihood_esm_msa.main(
+        input_h=aligned_input_handle,
+        output_h=aligned_output_handle,
+        masking_off=True,
+        sampler=msa_sampler,
+        reference_msa_handle=alignment_handle,
+        delete_insertions=False,
+        batch_size=1,
+        subset_strategy="in_order",
+        alignment_size=4,
+        unaligned_queries=False,
+    )
     aligned_output_handle.seek(0)
 
     unaligned_output_handle = StringIO()
     alignment_handle.seek(0)
-    likelihood_esm_msa.main(unaligned_input_handle, unaligned_output_handle, masking_off=True, sampler=msa_sampler,
-        reference_msa_handle=alignment_handle, delete_insertions=False, batch_size=1, subset_strategy="in_order",alignment_size=4, unaligned_queries=True)
+    likelihood_esm_msa.main(
+        input_h=unaligned_input_handle,
+        output_h=unaligned_output_handle,
+        masking_off=True,
+        sampler=msa_sampler,
+        reference_msa_handle=alignment_handle,
+        delete_insertions=False,
+        batch_size=1,
+        subset_strategy="in_order",
+        alignment_size=4,
+        unaligned_queries=True,
+    )
     unaligned_output_handle.seek(0)
     aligned_out_n, aligned_out_v = aligned_output_handle.readline().split()
     assert aligned_out_n == "id"
@@ -458,8 +489,17 @@ def test_likelihood_executable_top_hits(msa_sampler):
     alignment_handle = StringIO(reference_seqs_string)
 
     output_handle = StringIO()
-    likelihood_esm_msa.main(unaligned_input_handle, output_handle, masking_off=True, sampler=msa_sampler,
-        reference_msa_handle=alignment_handle, delete_insertions=False, batch_size=1, subset_strategy="top_hits",alignment_size=2,)
+    likelihood_esm_msa.main(
+        input_h=unaligned_input_handle,
+        output_h=output_handle,
+        masking_off=True,
+        sampler=msa_sampler,
+        reference_msa_handle=alignment_handle,
+        delete_insertions=False,
+        batch_size=1,
+        subset_strategy="top_hits",
+        alignment_size=2
+    )
     output_handle.seek(0)
 
 
