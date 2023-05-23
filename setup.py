@@ -22,7 +22,7 @@ setup(
         "src/pgen/clean_fasta.py"
     ],
     # py_modules=[splitext(basename(path))[0] for path in glob('src/pgen/*.py')],
-    install_requires=['pytest', 'tqdm', 'biopython~=1.79'],
+    install_requires=['pytest', 'tqdm', 'pytest-datadir', 'biopython~=1.79'],
     include_package_data=True,
     zip_safe=False,
     # python_requires='>=3.6'
