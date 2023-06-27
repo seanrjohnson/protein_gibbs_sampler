@@ -25,12 +25,9 @@ def pgen_msa(templates_path, references_path, output_path, seqs_per_template, ke
     write_sequential_fasta(tmp_file, reference_seqs)
     tmp_file.close()
     reference_db_path = tmp_file.name
-    names, sequences = parse_fasta(reference_db_path,return_names=True)
-    reference_seqs = dict()
-    for i in range(len(names)):
-        reference_seqs[names[i]] = sequences[i]
-    del names
-    del sequences
+    reference_seqs = {}
+    for name, seq in zip(*parse_fasta(reference_db_path, return_names=True)):
+        reference_seqs[name] = seq
 
     with tqdm(total=len(template_seqs) * seqs_per_template) as pbar:
         with open(output_path,"w") as outfile:
@@ -38,7 +35,6 @@ def pgen_msa(templates_path, references_path, output_path, seqs_per_template, ke
                 hits = run_phmmer(template_seq,reference_db_path)
                 unaligned_seqs = list()
                 for hit in hits:
-                    
                     if reference_seqs[hit] != template_seq or keep_identical:
                         unaligned_seqs.append(reference_seqs[hit])
                     if len(unaligned_seqs) == alignment_size -1:
@@ -57,9 +53,8 @@ def pgen_msa(templates_path, references_path, output_path, seqs_per_template, ke
 
     os.unlink(reference_db_path)
 
-def main(argv):
-    parser = argparse.ArgumentParser(description=textwrap.dedent("""Samples from the ESM-MSA model to generate new protein sequences."""), 
-            formatter_class=RawAndDefaultsFormatter)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=textwrap.dedent("Samples from the ESM-MSA model to generate new protein sequences."), formatter_class=RawAndDefaultsFormatter)
     
     parser.add_argument("--templates", default=None, required=True, help="an unaligned fasta file with sequences to mask for generating new sequences.")
     parser.add_argument("--references", default=None, required=True, help="an unaligned fasta file with reference sequences to search for homologs to the templates.")
@@ -78,9 +73,5 @@ def main(argv):
     parser.add_argument("--model", type=str, default="esm_msa1", choices={"esm_msa1"}, help="which model to use")
     parser.add_argument("--alignment_size", type=int, default=32, help="how many sequences (template plus references) should be in the alignments used for sequence generation.")
 
-    args = parser.parse_args(argv)
-
+    args = parser.parse_args()
     pgen_msa(args.templates, args.references, args.o, args.seqs_per_template, args.keep_identical, args.steps, args.passes, args.burn_in, args.device, args.model, args.alignment_size, args.ep, args.op, args.top_k)
-
-if __name__ == "__main__":
-    main(sys.argv[1:])
