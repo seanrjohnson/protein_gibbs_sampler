@@ -260,7 +260,7 @@ def generate_alignment(sequences, ep=0.0, op=1.53):
             raise(Exception)
     return parse_fasta_string(align_out.stdout.decode('utf-8'),True)
 
-def run_phmmer(query, database, evalue=10, cpu=2):
+def run_phmmer(query, database, evalue=10, cpu=2, max_mode=False):
     """
     Takes a <query> list of protein sequences,
         run hmmscan against the <database>,
@@ -295,6 +295,8 @@ def run_phmmer(query, database, evalue=10, cpu=2):
         
         
         search_args = ['phmmer', '--noali', '--notextw', '--cpu', str(cpu), '-E', str(evalue)]
+        if max_mode:
+            search_args += ["--max"]
         search_args += [queryfa_path, database]
         out = subprocess.run(search_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                              encoding='utf-8')

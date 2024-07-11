@@ -142,7 +142,7 @@ class ESM_MSA_sampler():
     #     self.untokenize_batch(batch)[target_index]
     #     return out.numpy(), self.toks
 
-    def generate_single(self, seed_msa, steps=10, passes=3, burn_in=1, target_index=-1, k=1):
+    def generate_single(self, seed_msa, steps=10, passes=3, burn_in=1, target_index=0, k=1, exclude_positions=None):
         """
             generate a single sequence from an MSA
             seed_msa: a list of sequences, they should be aligned and all the same length. The sequence at target_index in the list will be masked and sampled.
@@ -151,11 +151,20 @@ class ESM_MSA_sampler():
             burn_in: sample from the complete distribution for this many passes, then only take the highest probability amino acid for the remaining passes.
             target_index: index of the sequence to mask and sample.
         """
+        if exclude_positions is None:
+            exclude_positions = []
+        exclude_positions = [i + 1 for i in exclude_positions] # shift to account for cls token at beginning of sequence
+        exclude_positions = set(exclude_positions)
+
         with torch.no_grad():
             sequence_length = len(seed_msa[0])
             cuda = self.cuda
 
             positions = list(range(1,sequence_length+1)) #shift by 1 to account for cls token at beginning of sequence
+
+            # exclude the exclude positions:
+            positions = [x for x in positions if x not in exclude_positions]
+
 
             batch = self.get_init_msa(seed_msa, len(seed_msa[0]), 1)
             batch = batch.cuda() if cuda else batch
