@@ -136,7 +136,7 @@ For detailed help:
 
 ### pgen_msa_revised.py
 
-This program will randomly mask and resample a single sequence from the MSA. It can also generate new MSAs from a the top phmmer hits in a list of reference sequences.
+This program will randomly mask and resample a single sequence from the MSA. It will generate the MSA from the top phmmer hits in a list of reference sequences.
 
 example
 
