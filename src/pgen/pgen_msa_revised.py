@@ -129,7 +129,7 @@ def main(argv):
     parser.add_argument("--passes", type=int, default=3, help="how many passes over the entire template sequence to make.")
     parser.add_argument("--burn_in", type=int, default=1, help="A number of passes equal to burn_in will sample from the entire distribution, after which amino acids will be sampled from the top_k most likely.")
     parser.add_argument("--top_k", type=int, default=1, help="Sample from the this many of the most probable amino acids, after burn in. If 0 then always sample from full distribution.")
-    parser.add_argument("--legacy", action="store_true", default=False, help="Use the original implementation's behavior of swapping the first and last sequences in the alignment.")
+    parser.add_argument("--legacy", action="store_true", default=False, help="Use the original implementation's behavior of sampling from the last sequence in the MSA rather than the first, and ignoring gap_percent_threshold.")
     parser.add_argument("--gap_percent_threshold", type=float, default=80.0, 
                         help="Don't resample positions where more than this percent of sequences in the alignment contain gaps. Ignored in legacy mode."
                         " [Default: 80, meaning that if the MSA is 100 sequences, columns with 81 or more gaps will be not be resampled]")
