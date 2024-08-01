@@ -100,7 +100,6 @@ def parse_fasta(filename, return_names=False, clean=None, full_name=False):
 
         output: sequences or (names, sequences)
     """
-    
     prev_len = 0
     prev_name = None
     prev_seq = ""
@@ -283,8 +282,6 @@ def run_phmmer(query, database, evalue=10, cpu=2):
             The number of CPU cores to be used to run phmmer
 
     Returns: a list of hits ranked by how good the hits are.
-
-  
     """
     # Create a fasta file containing the query protein sequence. The fasta file name is based on input genbank file name
     with tempfile.TemporaryDirectory() as tmp:
