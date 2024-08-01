@@ -13,7 +13,7 @@ import warnings
 model_map = {"esm_msa1":models.ESM_MSA1}
 
 
-def pgen_msa(templates_path, references_path, output_path, seqs_per_template, keep_identical, steps, passes, burn_in, device, model, alignment_size, ep, op, top_k):
+def pgen_msa(templates_path, references_path, output_path, seqs_per_template, keep_identical=False, steps=10, passes=3, burn_in=1, device="gpu", model="esm_msa1", alignment_size=32, ep=0.0, op=1.53, top_k=1):
     clean_flag = 'unalign'
 
     template_seqs = list(zip(*parse_fasta(templates_path, clean=clean_flag, return_names=True)))
