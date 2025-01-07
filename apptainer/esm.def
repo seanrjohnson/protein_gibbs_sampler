@@ -1,0 +1,13 @@
+Bootstrap: docker
+From: condaforge/miniforge3:24.9.2-0
+
+%environment
+export PATH="/opt/conda/bin:$PATH"
+
+%post
+
+git clone https://github.com/seanrjohnson/protein_gibbs_sampler.git
+cd protein_gibbs_sampler
+
+conda env update --solver=libmamba --name base --file conda_env.yml
+pip install git+https://github.com/facebookresearch/esm.git
