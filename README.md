@@ -62,6 +62,9 @@ Running the tests for the first time might take a while because model weights ne
 This package contains four command line programs to make it easy to generate new sequences.
 For good performance, it is recommended to use GPU, but they will still run on a CPU, just excruciatingly slow for everything but small proteins.
 
+### Apptainer/Singularity Installation
+See: [apptainer/readme.md](apptainer/readme.md)
+
 ### pgen_esm.py
 
 Given a seed sequence, generates new sequences.
