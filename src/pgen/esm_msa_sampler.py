@@ -347,11 +347,11 @@ class ESM_MSA_sampler():
             last_i = -1
         return indexes, last_i
 
-    def log_likelihood(self, msa, target_index=-1, with_masking=True, verbose=False,
+    def log_likelihood(self, msa, target_index=0, with_masking=True, verbose=False,
                        count_gaps=False, mask_distance=float("inf")) -> Tuple[float,List[float]]:
         """
             msa: a list of protein sequence strings, each of the same length.
-            target_index: the sequence in the msa to mask
+            target_index: the sequence in the msa to mask (default: 0 [top of MSA])
             with_masking: if True, then iterate over the sequence masking one position at a time and summing the log likelihoods of the correct choice at the masked positions.
                         if False, then run the model just once, on the unmasked sequence.
             count_gaps: if True, then likelihoods for positions that are gaps in the target sequence will not be included in the averaging.
@@ -360,11 +360,11 @@ class ESM_MSA_sampler():
         return next(self.log_likelihood_batch([msa], target_index, with_masking, verbose, count_gaps, mask_distance))
 
     #TODO: convert to iterator
-    def log_likelihood_batch(self, msa_list, target_index=-1, with_masking=True, verbose=False,
+    def log_likelihood_batch(self, msa_list, target_index=0, with_masking=True, verbose=False,
                        count_gaps=False, mask_distance=float("inf"), batch_size=1) -> Iterator[Tuple[float,List[float]]]:
         """
             msa_list: a list of MSAs to calculate log_likelihood for. Each msa is a list of strings of the same length containing characters -ACDEFGHIKLMNPQRSTVWY
-            target_index: the sequence in the msa to mask. default -1 (the last sequence in the msa)
+            target_index: the sequence in the msa to mask. (default: 0 [top of MSA])
             with_masking: if True, then iterate over the sequence masking one position at a time and summing the log likelihoods of the correct choice at the masked positions.
                         if False, then run the model just once, on the unmasked sequence.
             verbose: if True then print debug information to stdout.

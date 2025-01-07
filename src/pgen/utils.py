@@ -170,7 +170,7 @@ def parse_fasta(filename, return_names=False, clean=None, full_name=False):
 
 def add_to_msa(msa, new_seq):
     """
-        calls muscle to append a new sequence to the end of an msa.
+        calls muscle to append a new sequence to the beggining of an msa.
 
         Input:
             msa: a list of protein sequence strings, each of the same length.
@@ -178,7 +178,7 @@ def add_to_msa(msa, new_seq):
             new_seq: a protein sequence string.
 
         output:
-            out_msa: a list of protein sequence strings. The new sequence will be at the end of the list.
+            out_msa: a list of protein sequence strings. The new sequence will be at the beginning of the list.
     """
     with tempfile.TemporaryDirectory() as tmp:
         out1_name = os.path.join(tmp, 'out1.fasta')
@@ -192,9 +192,11 @@ def add_to_msa(msa, new_seq):
         
         muscle_results = subprocess.run(["muscle", "-profile", "-in1", out1_name, "-in2", out2_name], capture_output=True, encoding="utf-8")
         names, seqs = parse_fasta_string(muscle_results.stdout, True)
+        
         #https://www.geeksforgeeks.org/python-move-element-to-end-of-the-list/
         try:
-            seqs.append(seqs.pop(names.index(new_seq_name)))
+            seq = seqs.pop(names.index(new_seq_name))
+            seqs = [seq] + seqs
         except ValueError as error:
             print(error, file=sys.stderr)
             print(f"{names}", file=sys.stderr)
