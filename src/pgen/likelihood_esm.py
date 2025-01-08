@@ -67,7 +67,7 @@ if __name__ == "__main__":
     parser.add_argument("-o", type=str, default=None, help="")
     parser.add_argument("-i", default=None, help="A fasta file with sequences to calculate log likelihood for. Any gaps or stop codons will be removed before running the ")
     parser.add_argument("--batch_size", default=1, help="How many sequences to batch together.")
-    parser.add_argument("--device", type=str, default="cpu", choices={"cpu","gpu"}, help="cpu or gpu")
+    parser.add_argument("--device", type=str, default="cpu", help="cpu, gpu (cuda:0), or cuda:[int]")
     parser.add_argument("--masking_off", action="store_true", default=False, help="If set, no masking is done.")
     parser.add_argument("--mask_distance",  type=int, default=None, help="If set, then multiple positions will be masked at a time, with (mask_distance - 1) non-masked positions between each masked position. This will make the likelihood calculations faster. Default: mask positions one at a time.")
     parser.add_argument("--model", type=str, default="esm1v", choices={"esm1b", "esm6", "esm12", "esm34", "esm1v"}, help="Which model to use.")

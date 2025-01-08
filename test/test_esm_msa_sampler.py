@@ -7,6 +7,7 @@ from io import StringIO
 from pgen.esm_msa_sampler import ESM_MSA_ALLOWED_AMINO_ACIDS
 import tempfile
 import pandas as pd
+import torch
 
 ####### Fixtures #######
 
@@ -22,6 +23,22 @@ def msa_sampler(esm_msa):
 
 
 ###### Tests #######
+
+def test_sampler_init_cpu(esm_msa):
+
+    sampler = esm_msa_sampler.ESM_MSA_sampler(esm_msa, device="cpu")
+    #TODO: test that the model is actually on the cpu
+
+@pytest.mark.skipif(not torch.cuda.is_available(),reason="requires a cuda to be available")
+def test_sampler_init_gpu(esm_msa):
+    sampler = esm_msa_sampler.ESM_MSA_sampler(esm_msa, device="gpu")
+    #TODO: test that the model is actually on the gpu
+
+@pytest.mark.skipif(not torch.cuda.is_available(),reason="requires a cuda to be available")
+def test_sampler_init_cuda0(esm_msa):
+    sampler = esm_msa_sampler.ESM_MSA_sampler(esm_msa, device="cuda:0")
+    #TODO: test that the model is actually on the gpu
+
 
 def test_untokenize_batch(msa_sampler):
     input_batch = [[

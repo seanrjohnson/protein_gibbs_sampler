@@ -10,6 +10,7 @@ from tqdm.contrib import tzip
 import tempfile
 import os
 import warnings
+import re
 
 # TODO: option to average across multiple runs with different random subsets
 POSITIONAL_SCORE_SEP=";"
@@ -155,7 +156,7 @@ if __name__ == "__main__":
     parser.add_argument("-o", type=str, default=None, help="")
     parser.add_argument("-i", default=None, help="A fasta file with sequences to calculate log likelihood for")
     parser.add_argument("--reference_msa", default=None, required=True, help="A fasta file with an msa to use as a reference. If subset_strategy is top_hits, then this should be an unaligned fasta of reference sequences.")
-    parser.add_argument("--device", type=str, default="cpu", choices={"cpu", "gpu"}, help="cpu or gpu")
+    parser.add_argument("--device", type=str, default="cpu", help="cpu, gpu (cuda:0), or cuda:[int]")
     parser.add_argument("--masking_off", action="store_true", default=False, help="If set, no masking is done.")
     parser.add_argument("--delete_insertions", action='store_true', default=False, help="If set, then remove all lowercase and '.' characters from input sequences. Default: convert lower to upper and '.' to '-'.") #might want to have the option to keep "." in the msa and convert lower to upper (which would be consistent with the vocabulary, which has ".", but does not have lowercase characters.)
     parser.add_argument("--alignment_size", type=int, default=sys.maxsize, help="Sample this many sequences from the reference alignment before doing gibbs sampling, recommended values are 31-255. Default: the entire reference alignment.")
@@ -174,6 +175,7 @@ if __name__ == "__main__":
 
 
     args = parser.parse_args()
+
     if args.redraw and args.subset_strategy == 'in_order':
         raise ValueError(f"redraw is set, but subset_strategy is 'in_order', so all the draws will be the same. That's probably not what you're trying to do.")
 

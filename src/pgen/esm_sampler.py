@@ -3,6 +3,7 @@ import torch
 import math
 import random
 from tqdm import trange
+import re
 
 def generate_step(out, gen_idx, temperature=None, top_k=0, sample=False, valid_idx=None):
     """ Generate a word from from out[gen_idx]
@@ -60,18 +61,23 @@ class ESM_sampler():
         #TODO: CHECK THAT THIS ACTUALLY SWITCHES THE MODEL TO EVAL MODE AND TURNS OFF GRADIENTS!
         self.model.model = self.model.model.eval()
         self.cuda = False
+        self.device = device
         #set device
-        #TODO: handle case where there are multiple cuda devices.
-        if (device == "gpu"):
+        if (self.device == "gpu"):
+            self.device = "cuda:0"
+        if re.match("^cuda:[0-9]+$", self.device):
+            cuda_device_num = int(self.device.split(":")[1])
             if (torch.cuda.is_available()):
-                device = 'cuda:0'
                 self.cuda = True
             else:
                 raise(Exception("gpu requested, but No Cuda devices found"))
-        else:
-            device = "cpu"
-        device = torch.device(device)
-        self.model.model.to(device)
+            
+            if (cuda_device_num >= torch.cuda.device_count()):
+                raise(Exception("Invalid cuda device number: " + self.device))
+        elif self.device != "cpu":
+            raise(Exception("Invalid device: " + self.device))
+        device = torch.device(self.device)
+        self.model.model.to(self.device)
 
         self.valid_aa_idx = sorted([self.model.alphabet.get_idx(tok) for tok in ESM_ALLOWED_AMINO_ACIDS])
 
@@ -193,7 +199,7 @@ class ESM_sampler():
             for batch_n in trange(n_batches, disable=(not show_progress_bar)):
 
                 batch = self.get_init_seq(seed_seq, max_len, batch_size)
-                batch = batch.cuda() if cuda else batch
+                batch = batch.cuda(self.device) if cuda else batch
 
                 indexes, last_i = self.calculate_indexes(indexes, leader_length, max_len, rollover_from_start)
 
@@ -304,7 +310,7 @@ class ESM_sampler():
         for b_idx in range(n_batches):
             assert len(seq_list[b_idx]) == len(range(range_start, batch_range_end[b_idx]))
 
-        tokens = tokens.cuda() if self.cuda else tokens
+        tokens = tokens.cuda(self.device) if self.cuda else tokens
         with torch.no_grad():
             if with_masking:
                 old_toks = tokens.clone().detach()
@@ -330,7 +336,7 @@ class ESM_sampler():
                     for batch_start in range(0, num_sequences_to_process, batch_size):
 
                         this_batch = tokens_for_seq[batch_start:batch_start + batch_size, :]
-                        this_batch = this_batch.cuda() if self.cuda else this_batch
+                        this_batch = this_batch.cuda(self.device) if self.cuda else this_batch
                         token_probs = torch.log_softmax(self.model.model(this_batch)['logits'], dim=-1)
 
                         for i_sample in range(token_probs.shape[0]):

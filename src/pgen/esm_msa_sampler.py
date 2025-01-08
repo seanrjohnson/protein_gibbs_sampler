@@ -5,6 +5,7 @@ import random
 from tqdm import trange
 from pgen.esm_sampler import generate_step
 import sys
+import re
 
 ESM_MSA_ALLOWED_AMINO_ACIDS = "-ACDEFGHIKLMNPQRSTVWY"
 ESM_MSA_GAP_CHARACTERS = "-"  # there might be some reason to add "." to both of these constants some day.
@@ -43,18 +44,23 @@ class ESM_MSA_sampler():
         #switch model to eval mode
         self.model.model = self.model.model.eval()
         self.cuda = False
+        self.device = device
         #set device
-        #TODO: handle case where there are multiple cuda devices.
-        if (device == "gpu"):
+        if (self.device == "gpu"):
+            self.device = "cuda:0"
+        if re.match("^cuda:[0-9]+$", self.device):
+            cuda_device_num = int(self.device.split(":")[1])
             if (torch.cuda.is_available()):
-                device = 'cuda:0'
                 self.cuda = True
             else:
                 raise(Exception("gpu requested, but No Cuda devices found"))
-        else:
-            device = "cpu"
-        device = torch.device(device)
-        self.model.model.to(device)
+            
+            if (cuda_device_num >= torch.cuda.device_count()):
+                raise(Exception("Invalid cuda device number: " + self.device))
+        elif self.device != "cpu":
+            raise(Exception("Invalid device: " + self.device))
+        device = torch.device(self.device)
+        self.model.model.to(self.device)
 
         self.valid_aa_idx = sorted([self.model.alphabet.get_idx(tok) for tok in ESM_MSA_ALLOWED_AMINO_ACIDS])
         self.toks = [self.model.alphabet.get_tok(idx) for idx in self.valid_aa_idx]
@@ -92,56 +98,6 @@ class ESM_MSA_sampler():
             raise (Exception("Invalid input character: " + ",".join(input_chars - valid_chars)))
         return seq
 
-    # def probs_single(self, seed_msa, steps=10, target_index=-1, show_progress_bar=False):
-    #     """
-    #         calculate_probability for each position of an input sequence. runs one pass over 
-    #         seed_msa: a list of sequences, they should be aligned and all the same length. The sequence at target_index in the list will be masked and sampled.
-    #         steps: The positions in the sampled sequence will be randomly split into this many parts and they will be masked at the same time.
-    #         target_index: index of the sequence to mask and sample.
-    #         show_progress_bar: if True then a progress bar will be updated in the console.
-        
-    #         returns matrix, alphabet
-            
-    #         where:
-    #             matrix is (alphabet_size * sequence size) where values are probabilities
-    #             and
-    #             alphabet is a list of len(alphabet_size) where values are the alphabet symbol at the corresponding row in the output matrix
-
-    #     """
-    #     sequence_length = len(seed_msa[0])
-    #     out = torch.zeros((len(self.valid_aa_idx), sequence_length))
-
-    #     with torch.no_grad():
-    #         batch_index = 0
-    #         cuda = self.cuda
-
-    #         positions = list(range(1,sequence_length+1)) #shift by 1 to account for cls token at beginning of sequence
-
-    #         batch = self.get_init_msa(seed_msa, len(seed_msa[0]), 1)
-    #         batch = batch.cuda() if cuda else batch
-    #         original_indexes = batch[batch_index][target_index].clone().detach()
-
-    #         random.shuffle(positions)
-    #         step_indices = partition(positions, steps)
-            
-    #         for step_i in trange(len(step_indices), disable=(not show_progress_bar)): # a step is one forward call of the model, where a subset of the sequence has been masked
-    #             self.mask_target_indexes_single(batch, step_indices[step_i], -1)
-    #             # shape: (batch, sequences, sequence_len, alphabet_digits)
-    #             forward_pass = self.model.model(batch)["logits"]
-                
-    #             for kk, aa_position in enumerate(step_indices[step_i]): #position
-    #                 #torch.distributions.categorical.Categorical(logits=kth_vals)
-    #                 probs = torch.distributions.categorical.Categorical(logits=forward_pass[batch_index][target_index][aa_position][self.valid_aa_idx]).probs
-    #                 out[:,aa_position-1] = probs
-
-    #             batch[batch_index][target_index] = original_indexes
-                
-
-                
-        
-    #     self.untokenize_batch(batch)[target_index]
-    #     return out.numpy(), self.toks
-
     def generate_single(self, seed_msa, steps=10, passes=3, burn_in=1, target_index=0, k=1, exclude_positions=None):
         """
             generate a single sequence from an MSA
@@ -167,7 +123,7 @@ class ESM_MSA_sampler():
 
 
             batch = self.get_init_msa(seed_msa, len(seed_msa[0]), 1)
-            batch = batch.cuda() if cuda else batch
+            batch = batch.cuda(self.device) if cuda else batch
 
             for pass_num in range(passes): # a pass is a complete pass over the sequence
                 random.shuffle(positions)
@@ -254,7 +210,7 @@ class ESM_MSA_sampler():
 
                 # shape: (batch, sequences, sequence_len)
                 batch = self.get_init_msa(seed_msa, max_len, batch_size)
-                batch = batch.cuda() if cuda else batch
+                batch = batch.cuda(self.device) if cuda else batch
 
                 indexes, last_i = self.calculate_indexes(indexes, leader_length, max_len, rollover_from_start)
 
@@ -408,7 +364,7 @@ class ESM_MSA_sampler():
         # each msa is a sample. If you need to mask an msa multiple different ways, then each alternative masking is a sample.
         # batch shape: (sample, 2 (tuple), sequence_len) 
         # tokens shape: (sample, sequences, sequence_len) = alphabet_digit
-        tokens = tokens.cuda() if self.cuda else tokens
+        tokens = tokens.cuda(self.device) if self.cuda else tokens
 
         with torch.no_grad():
             original_tokens = tokens[:, target_index].clone().detach()
@@ -427,7 +383,7 @@ class ESM_MSA_sampler():
 
                     masked_idx = set()
                     _, _, all_samples_for_this_msa_tokens = self.model.batch_converter(all_samples_for_this_msa)
-                    # all_samples_for_this_msa_tokens = all_samples_for_this_msa_tokens.cuda() if self.cuda else all_samples_for_this_msa_tokens
+                    # all_samples_for_this_msa_tokens = all_samples_for_this_msa_tokens.cuda(self.device) if self.cuda else all_samples_for_this_msa_tokens
 
                     for i_sample in range(num_samples_for_this_msa):
                         positions = range(range_start + i_sample, msa_range_end[msa_idx], num_samples_for_this_msa)
@@ -443,7 +399,7 @@ class ESM_MSA_sampler():
 
                         # tokens shape: (sample, sequences, sequence_len)
                         this_batch = all_samples_for_this_msa_tokens[batch_start:batch_start+batch_size,:,:]
-                        this_batch = this_batch.cuda() if self.cuda else this_batch
+                        this_batch = this_batch.cuda(self.device) if self.cuda else this_batch
                         token_probs = torch.log_softmax(self.model.model(this_batch)['logits'], dim=-1)
 
 

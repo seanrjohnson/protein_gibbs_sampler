@@ -137,7 +137,7 @@ def main(argv):
     parser.add_argument("--ep", type=float, default=0.0, help="ep parameter passed to MAFFT for alignments")
     parser.add_argument("--op", type=float, default=1.53, help="op parameter passed to MAFFT for alignments")
 
-    parser.add_argument("--device", type=str, default="cpu", choices={"cpu","gpu"}, help="cpu or gpu") #TODO: allow specification of particular CUDA devices.
+    parser.add_argument("--device", type=str, default="cpu", help="cpu, gpu (cuda:0), or cuda:[int]")
     parser.add_argument("--model", type=str, default="esm_msa1", choices={"esm_msa1"}, help="which model to use")
     parser.add_argument("--alignment_size", type=int, default=32, help="how many sequences (template plus references) should be in the alignments used for sequence generation.")
     parser.add_argument("--debug", action="store_true", default=False, help="run in debug mode. Runs phmmer in --max mode, to turn off pre-filters and allow finding very short hits.")

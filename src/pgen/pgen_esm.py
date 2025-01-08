@@ -58,7 +58,7 @@ if __name__ == "__main__":
     parser.add_argument("-i", default=None, help="tab separated file where the columns are as follows: [sample name] \\t [dict of arguments for the sampler].")
     parser.add_argument("--batch_size", type=int, default=1, help="batch size for sampling (sequences per iteration).")
     parser.add_argument("--num_output_sequences", type=int, default=1, help="total number of sequences to generate.")
-    parser.add_argument("--device", type=str, default="cpu", choices={"cpu","gpu"}, help="cpu or gpu")
+    parser.add_argument("--device", type=str, default="cpu", help="cpu, gpu (cuda:0), or cuda:[int]")
     parser.add_argument("--model", type=str, default="esm1b", choices={"esm1b", "esm6", "esm12", "esm34", "esm1v"}, help="which model to use")
 
     args = parser.parse_args()

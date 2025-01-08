@@ -54,7 +54,7 @@ def main(argv):
     parser.add_argument("-o", default=None, required=True, help="a fasta file to write generated sequences to")
     parser.add_argument("--steps", type=int, default=None, help="Randomly assign the input positions to this many mask bins pass, and mask and generate over one bin at a time.")
 
-    parser.add_argument("--device", type=str, default="cpu", choices={"cpu","gpu"}, help="cpu or gpu")
+    parser.add_argument("--device", type=str, default="cpu", help="cpu, gpu (cuda:0), or cuda:[int]")
     parser.add_argument("--model", type=str, default="esm_msa1", choices={"esm_msa1"}, help="which model to use")
     
     args = parser.parse_args(argv)

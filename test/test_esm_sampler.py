@@ -31,6 +31,10 @@ def test_sampler_init_gpu(esm6):
     sampler = esm_sampler.ESM_sampler(esm6,  device="gpu")
     #TODO: test that the model is actually on the gpu
 
+@pytest.mark.skipif(not torch.cuda.is_available(),reason="requires a cuda to be available")
+def test_sampler_init_cuda0(esm6):
+    sampler = esm_sampler.ESM_sampler(esm6,  device="cuda:0")
+    #TODO: test that the model is actually on the gpu
 
 def test_sampler_init_gpu_when_not_available(esm6,mock_no_gpu):
     pytest.raises(Exception, esm_sampler.ESM_sampler, esm6, device="gpu")

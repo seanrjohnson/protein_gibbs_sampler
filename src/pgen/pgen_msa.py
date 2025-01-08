@@ -77,7 +77,7 @@ if __name__ == "__main__":
     parser.add_argument("-i", default=None, help="tab separated file where the columns are as follows: [sample name] \\t [dict of arguments for the sampler] \\t [path to seed msa in fasta or a2m format].")
     parser.add_argument("--batch_size", type=int, default=1, choices={1,}, help="batch size for sampling (msa instances per iteration). Must be 1. This might change in the future.")
     parser.add_argument("--num_output_sequences", type=int, default=1, help="total number of sequences to generate.")
-    parser.add_argument("--device", type=str, default="cpu", choices={"cpu","gpu"}, help="cpu or gpu")
+    parser.add_argument("--device", type=str, default="cpu", help="cpu, gpu (cuda:0), or cuda:[int]")
     parser.add_argument("--model", type=str, default="esm_msa1", choices={"esm_msa1"}, help="which model to use")
     parser.add_argument("--delete_insertions", action='store_true', default=False, help="If set, then remove all lowercase and '.' characters from input sequences. Default: convert lower to upper and '.' to '-'.") #might want to have the option to keep "." in the msa and convert lower to upper (which would be consistent with the vocabulary, which has ".", but does not have lowercase characters.)
 
