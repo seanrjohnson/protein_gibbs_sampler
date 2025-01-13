@@ -1,10 +1,10 @@
 # To build
-`apptainer build singularity.sif esm.def`
+`apptainer build apptainer.sif apptainer.def`
 
 
 # To test:
 ```bash
-apptainer shell --nv singularity.sif
+apptainer shell --nv apptainer.sif
 cd /protein_gibbs_sampler
 . ${CONDA_DIR}/etc/profile.d/conda.sh && conda activate base
 pytest test
@@ -12,6 +12,6 @@ pytest test
 
 # To run scripts
 ```bash
-apptainer exec --nv singularity.sif pgen_esm.py
+apptainer exec --nv apptainer.sif pgen_esm.py
 ```
-Note: apptainer run seems to work also.
+note: `apptainer run` seems to work also

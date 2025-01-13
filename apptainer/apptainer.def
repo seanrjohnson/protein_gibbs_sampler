@@ -9,5 +9,4 @@ export PATH="/opt/conda/bin:$PATH"
 git clone https://github.com/seanrjohnson/protein_gibbs_sampler.git
 cd protein_gibbs_sampler
 
-conda env update --solver=libmamba --name base --file conda_env.yml
-pip install git+https://github.com/facebookresearch/esm.git
+conda env update --name base --file conda_env.yml
