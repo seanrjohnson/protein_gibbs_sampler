@@ -1,23 +1,23 @@
 name: protein_gibbs_sampler
 channels:
-  - conda-forge
   - pytorch
   - nvidia
   - bioconda
+  - conda-forge
 dependencies:
-  - python>=3.8
-  - pandas~=1.3.5
+  - python>=3.9,<3.10
+  - pandas>=1.3.5,<2.0.0
   - muscle~=3.8.0
   - biopython~=1.79
-  - tqdm~=4.62.0
-  - pytorch~=1.9.0
-  - cudatoolkit=11.1
+  - tqdm
+  - pytorch~=2.5.0
+  - pytorch-cuda=12.4
   - mafft=7.487
   - hmmer~=3.3.2
   - pip
   - pytest
   - pytest-datadir
   - pip:
-    - git+https://github.com/facebookresearch/esm.git@e5e7b06b9a093706607c229ab1c5c9821806814d
+    - git+https://github.com/facebookresearch/esm.git
     - -e .
 
